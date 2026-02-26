@@ -31,6 +31,9 @@ import TeamPage from "./pages/Merchant-Dashboard/team-page";
 import NotificationsPage from "./pages/Merchant-Dashboard/notifications";
 import TransactionsPage from "./pages/Merchant-Dashboard/transaction";
 import SmartLoanPage from "./pages/Merchant-Dashboard/time-loan";
+import LimitSimulatorPage from "./pages/Merchant-Dashboard/simulator";
+import SettingsPage from "./pages/Merchant-Dashboard/settings";
+import HelpPage from "./pages/Merchant-Dashboard/help";
 
 function App() {
 
@@ -72,6 +75,10 @@ function App() {
             <Route path="/merchant/dashboard/transactions" element={<DashboardLayout children={<TransactionsPage/>}/>} />
 
             <Route path="/merchant/dashboard/analytics" element={<DashboardLayout children={<SmartLoanPage/>}/>} />
+            <Route path="/merchant/dashboard/simulator" element={<DashboardLayout children={<LimitSimulatorPage/>}/>} />
+
+            <Route path="/merchant/dashboard/settings" element={<DashboardLayout children={<SettingsPage/>}/>} />
+            <Route path="/merchant/dashboard/help" element={<DashboardLayout children={<HelpPage/>}/>} />
 
             <Route path="/merchant/dashboard/team" element={<DashboardLayout children={<TeamPage/>}/>} />
             <Route path="/merchant/dashboard/notifications" element={<DashboardLayout children={<NotificationsPage/>}/>} />

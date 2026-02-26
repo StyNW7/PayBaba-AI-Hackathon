@@ -17,8 +17,11 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useLocation } from 'react-router';
+import { useNavigate } from 'react-router';
 
 export default function Sidebar() {
+
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const pathname = useLocation().pathname;
@@ -38,15 +41,19 @@ export default function Sidebar() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  const handleLogout = () => {
+    navigate("/")
+  }
+
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/merchant/dashboard', active: true },
     { icon: TrendingUp, label: 'Smart Loan Timing', href: '/merchant/dashboard/analytics' },
     { icon: Wallet, label: 'Transactions', href: '/merchant/dashboard/transactions' },
     { icon: CreditCard, label: 'Credit', href: '/merchant/dashboard/credit' },
-    { icon: FileText, label: 'Reports', href: '/dashboard/reports' },
+    { icon: FileText, label: 'Limit Simulator', href: '/merchant/dashboard/simulator' },
     { icon: Users, label: 'Team', href: '/merchant/dashboard/team' },
     { icon: Bell, label: 'Notifications', href: '/merchant/dashboard/notifications', badge: 3 },
-    { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
+    { icon: Settings, label: 'Settings', href: '/merchant/dashboard/settings' },
   ];
 
   return (
@@ -132,7 +139,7 @@ export default function Sidebar() {
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#E5E7EB]/60 bg-white/90 backdrop-blur-xl">
           {/* Help Button */}
           <a
-            href="/dashboard/help"
+            href="/merchant/dashboard/help"
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#6B7280] hover:text-[#2DAEAA] hover:bg-[#E0F7F6] transition-all duration-200 mb-2"
           >
             <HelpCircle size={20} />
@@ -140,7 +147,7 @@ export default function Sidebar() {
           </a>
           
           {/* Logout Button */}
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#6B7280] hover:text-[#EF4444] hover:bg-[#FEE2E2] transition-all duration-200 group">
+          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#6B7280] hover:text-[#EF4444] hover:bg-[#FEE2E2] transition-all duration-200 group" onClick={handleLogout}>
             <LogOut size={20} className="group-hover:rotate-180 transition-transform duration-300" />
             <span className="font-medium">Logout</span>
           </button>
