@@ -30,6 +30,7 @@ import CreditReadinessPage from "./pages/Merchant-Dashboard/credit-readiness";
 import TeamPage from "./pages/Merchant-Dashboard/team-page";
 import NotificationsPage from "./pages/Merchant-Dashboard/notifications";
 import TransactionsPage from "./pages/Merchant-Dashboard/transaction";
+import SmartLoanPage from "./pages/Merchant-Dashboard/time-loan";
 
 function App() {
 
@@ -69,6 +70,8 @@ function App() {
             <Route path="/merchant/dashboard" element={<DashboardLayout children={<DashboardPage/>}/>} />
             <Route path="/merchant/dashboard/credit" element={<DashboardLayout children={<CreditReadinessPage/>}/>} />
             <Route path="/merchant/dashboard/transactions" element={<DashboardLayout children={<TransactionsPage/>}/>} />
+
+            <Route path="/merchant/dashboard/analytics" element={<DashboardLayout children={<SmartLoanPage/>}/>} />
 
             <Route path="/merchant/dashboard/team" element={<DashboardLayout children={<TeamPage/>}/>} />
             <Route path="/merchant/dashboard/notifications" element={<DashboardLayout children={<NotificationsPage/>}/>} />
