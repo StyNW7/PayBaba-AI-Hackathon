@@ -4,7 +4,7 @@ import { Outlet } from "react-router";
 
 function RootLayout() {
     return (
-        <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+        <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
             <SiteHeader />
             <div className="relative flex min-h-svh flex-col bg-background">
                 <Outlet />
