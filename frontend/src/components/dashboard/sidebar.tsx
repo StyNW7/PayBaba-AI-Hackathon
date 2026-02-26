@@ -44,8 +44,8 @@ export default function Sidebar() {
     { icon: Wallet, label: 'Transactions', href: '/dashboard/transactions' },
     { icon: CreditCard, label: 'Credit', href: '/merchant/dashboard/credit' },
     { icon: FileText, label: 'Reports', href: '/dashboard/reports' },
-    { icon: Users, label: 'Team', href: '/dashboard/team' },
-    { icon: Bell, label: 'Notifications', href: '/dashboard/notifications', badge: 3 },
+    { icon: Users, label: 'Team', href: '/merchant/dashboard/team' },
+    { icon: Bell, label: 'Notifications', href: '/merchant/dashboard/notifications', badge: 3 },
     { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
   ];
 

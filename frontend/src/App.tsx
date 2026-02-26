@@ -27,6 +27,8 @@ import ForgotPasswordPage from "./pages/Auth/Forgot-Password";
 import DashboardPage from "./pages/Merchant-Dashboard/page";
 import DashboardLayout from "./components/dashboard/layout";
 import CreditReadinessPage from "./pages/Merchant-Dashboard/credit-readiness";
+import TeamPage from "./pages/Merchant-Dashboard/team-page";
+import NotificationsPage from "./pages/Merchant-Dashboard/notifications";
 
 function App() {
 
@@ -65,6 +67,9 @@ function App() {
 
             <Route path="/merchant/dashboard" element={<DashboardLayout children={<DashboardPage/>}/>} />
             <Route path="/merchant/dashboard/credit" element={<DashboardLayout children={<CreditReadinessPage/>}/>} />
+
+            <Route path="/merchant/dashboard/team" element={<DashboardLayout children={<TeamPage/>}/>} />
+            <Route path="/merchant/dashboard/notifications" element={<DashboardLayout children={<NotificationsPage/>}/>} />
 
           </Routes>
 
