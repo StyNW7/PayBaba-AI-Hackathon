@@ -42,6 +42,7 @@ import EarlyWarningPage from "./pages/Bank-Dashboard/early-warning-system";
 
 import PayBabaDashboardLayout from "./pages/PayBaba-Dashboard/layout";
 import MonetizationDashboardPage from "./pages/PayBaba-Dashboard/monetization";
+import AIOpsDashboardPage from "./pages/PayBaba-Dashboard/ai-ops";
 
 function App() {
 
@@ -107,6 +108,7 @@ function App() {
             {/* PayBaba Admin Dashboard */}
 
             <Route path="/paybaba/dashboard" element={<PayBabaDashboardLayout children={<MonetizationDashboardPage/>}/>} />
+            <Route path="/paybaba/dashboard/ai" element={<PayBabaDashboardLayout children={<AIOpsDashboardPage/>}/>} />
 
           </Routes>
 

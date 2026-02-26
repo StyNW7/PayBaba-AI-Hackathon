@@ -32,8 +32,8 @@ export default function AuthVisual() {
         {/* Logo/Brand */}
         <div className="mb-12">
           <div className="inline-flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
-              <span className="text-lg font-bold">₹</span>
+            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center backdrop-blur-sm">
+              <img src='/Images/logo-only.png'/>
             </div>
             <span className="text-2xl font-bold">PayBaba</span>
           </div>

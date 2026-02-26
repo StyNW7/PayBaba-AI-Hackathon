@@ -42,7 +42,7 @@ export default function Sidebar() {
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Monetization Dashboard', href: '/paybaba/dashboard', active: true },
-    { icon: TrendingUp, label: 'Merchant Detail', href: '/bank/dashboard/merchant/:id' },
+    { icon: TrendingUp, label: 'AI OPS System', href: '/paybaba/dashboard/ai' },
     { icon: Wallet, label: 'Early Warning System', href: '/bank/dashboard/warning-system' },
   ];
 
