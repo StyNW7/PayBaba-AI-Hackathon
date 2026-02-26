@@ -34,6 +34,10 @@ import SmartLoanPage from "./pages/Merchant-Dashboard/time-loan";
 import LimitSimulatorPage from "./pages/Merchant-Dashboard/simulator";
 import SettingsPage from "./pages/Merchant-Dashboard/settings";
 import HelpPage from "./pages/Merchant-Dashboard/help";
+import BankDashboardPage from "./pages/Bank-Dashboard/overview";
+
+import BankDashboardLayout from "./pages/Bank-Dashboard/layout";
+import MerchantDetailPage from "./pages/Bank-Dashboard/merchant-detail";
 
 function App() {
 
@@ -66,9 +70,13 @@ function App() {
 
             </Route>
 
+            {/* Auth Page */}
+
             <Route path="/auth/login" element={<LoginPage/>} />
             <Route path="/auth/register" element={<RegisterPage/>} />
             <Route path="/auth/forgot-password" element={<ForgotPasswordPage/>} />
+
+            {/* Merchant Dashboard */}
 
             <Route path="/merchant/dashboard" element={<DashboardLayout children={<DashboardPage/>}/>} />
             <Route path="/merchant/dashboard/credit" element={<DashboardLayout children={<CreditReadinessPage/>}/>} />
@@ -82,6 +90,11 @@ function App() {
 
             <Route path="/merchant/dashboard/team" element={<DashboardLayout children={<TeamPage/>}/>} />
             <Route path="/merchant/dashboard/notifications" element={<DashboardLayout children={<NotificationsPage/>}/>} />
+
+            {/* Bank Dashboard */}
+
+            <Route path="/bank/dashboard" element={<BankDashboardLayout children={<BankDashboardPage/>}/>} />
+            <Route path="/bank/dashboard/merchant/:id" element={<BankDashboardLayout children={<MerchantDetailPage/>}/>} />
 
           </Routes>
 
