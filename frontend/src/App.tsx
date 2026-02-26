@@ -24,6 +24,8 @@ import LandingPage from "@/pages/Landing/page";
 import LoginPage from "./pages/Auth/Login";
 import RegisterPage from "./pages/Auth/Register";
 import ForgotPasswordPage from "./pages/Auth/Forgot-Password";
+import DashboardPage from "./pages/Dashboard/page";
+import DashboardLayout from "./components/dashboard/layout";
 
 function App() {
 
@@ -48,8 +50,6 @@ function App() {
 
           <Routes>
 
-            
-
             <Route path="/" element={<Layout />}>
               
                 <Route index element={<LandingPage/>} />
@@ -61,6 +61,8 @@ function App() {
             <Route path="/auth/login" element={<LoginPage/>} />
             <Route path="/auth/register" element={<RegisterPage/>} />
             <Route path="/auth/forgot-password" element={<ForgotPasswordPage/>} />
+
+            <Route path="/merchant/dashboard" element={<DashboardLayout children={<DashboardPage/>}/>} />
 
           </Routes>
 
