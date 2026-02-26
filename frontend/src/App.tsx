@@ -38,6 +38,7 @@ import BankDashboardPage from "./pages/Bank-Dashboard/overview";
 
 import BankDashboardLayout from "./pages/Bank-Dashboard/layout";
 import MerchantDetailPage from "./pages/Bank-Dashboard/merchant-detail";
+import EarlyWarningPage from "./pages/Bank-Dashboard/early-warning-system";
 
 function App() {
 
@@ -94,7 +95,11 @@ function App() {
             {/* Bank Dashboard */}
 
             <Route path="/bank/dashboard" element={<BankDashboardLayout children={<BankDashboardPage/>}/>} />
+
+            {/* Ini harus disesuaikan lagi */}
             <Route path="/bank/dashboard/merchant/:id" element={<BankDashboardLayout children={<MerchantDetailPage/>}/>} />
+
+            <Route path="/bank/dashboard/warning-system" element={<BankDashboardLayout children={<EarlyWarningPage/>}/>} />
 
           </Routes>
 
