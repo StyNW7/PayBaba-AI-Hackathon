@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
-import { useState, useEffect, type SetStateAction } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Search,
   Download,
@@ -25,216 +26,234 @@ import {
   AlertCircle,
   CreditCard,
   ShoppingBag,
-  RefreshCw
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import { transactionApi, type Transaction } from '@/services/api';
+import LoadingSpinner from '@/components/loading-spinner';
+import ErrorState from '@/components/error-state';
+import React from 'react';
 
-// Types
-interface TransactionItem {
-  id: number;
-  name: string;
-  quantity: number;
-  price: number;
-  total: number;
-}
+// Helper function to format date for API
+const formatDateForAPI = (date: Date | null): string | undefined => {
+  if (!date) return undefined;
+  return date.toISOString();
+};
 
-interface Transaction {
-  id: string;
-  date: Date;
-  customer: {
-    name: string;
-    email: string;
-    avatar?: string;
-  };
-  grandTotal: number;
-  status: 'success' | 'pending' | 'failed' | 'refunded' | 'processing';
-  items: TransactionItem[];
-  paymentMethod: string;
-  transactionId: string;
-  category: string;
-  location: string;
-}
+// Helper function to map frontend status to API status
+const mapStatusToAPI = (status: string): string | undefined => {
+  if (status === 'all') return undefined;
+  if (status === 'success') return 'Success';
+  if (status === 'pending') return 'Pending';
+  if (status === 'processing') return 'Pending';
+  if (status === 'failed') return 'Failed';
+  if (status === 'refunded') return 'Refunded';
+  return undefined;
+};
 
-// Generate dummy data - 50+ transactions
-const generateDummyTransactions = (): Transaction[] => {
-  const customers = [
-    { name: 'Acme Corporation', email: 'billing@acme.com', avatar: 'AC' },
-    { name: 'TechStart Solutions', email: 'finance@techstart.com', avatar: 'TS' },
-    { name: 'Global Retail Inc', email: 'accounts@globalretail.com', avatar: 'GR' },
-    { name: 'Digital Media Co', email: 'payments@digitalmedia.co', avatar: 'DM' },
-    { name: 'StartUp Labs', email: 'billing@startuplabs.io', avatar: 'SL' },
-    { name: 'Ecom Solutions Ltd', email: 'finance@ecomsolutions.com', avatar: 'ES' },
-    { name: 'Consulting Group LLC', email: 'invoices@consultinggroup.com', avatar: 'CG' },
-    { name: 'Creative Agency', email: 'accounts@creativeagency.com', avatar: 'CA' },
-    { name: 'Innovation Hub', email: 'finance@innovationhub.com', avatar: 'IH' },
-    { name: 'Cloud Services Pro', email: 'billing@cloudpro.io', avatar: 'CP' },
-    { name: 'Data Analytics Inc', email: 'payments@dataanalytics.com', avatar: 'DA' },
-    { name: 'Marketing Experts', email: 'finance@marketingexperts.com', avatar: 'ME' },
-    { name: 'Software Solutions', email: 'accounts@softwaresol.com', avatar: 'SS' },
-    { name: 'Hardware Store', email: 'billing@hardwarestore.com', avatar: 'HS' },
-    { name: 'Fashion Retail', email: 'finance@fashionretail.com', avatar: 'FR' },
-    { name: 'Food & Beverages', email: 'orders@foodbeverages.com', avatar: 'FB' },
-    { name: 'Travel Agency', email: 'bookings@travelagency.com', avatar: 'TA' },
-    { name: 'Real Estate Group', email: 'payments@realestate.com', avatar: 'RE' },
-    { name: 'Healthcare Plus', email: 'billing@healthcareplus.com', avatar: 'HP' },
-    { name: 'Education Portal', email: 'finance@educationportal.com', avatar: 'EP' }
-  ];
-
-  const products = [
-    { name: 'Enterprise Software License', prices: [45000, 60000, 75000] },
-    { name: 'Premium Support Package', prices: [25000, 35000, 50000] },
-    { name: 'API Access Credits', prices: [10000, 20000, 30000] },
-    { name: 'Cloud Hosting - Annual', prices: [60000, 90000, 120000] },
-    { name: 'SSL Certificate', prices: [14500, 25000, 35000] },
-    { name: 'POS System License', prices: [35000, 50000, 75000] },
-    { name: 'Hardware Bundle', prices: [20000, 40000, 60000] },
-    { name: 'Ad Credits', prices: [25000, 50000, 100000] },
-    { name: 'Analytics Package', prices: [3500, 7000, 15000] },
-    { name: 'Developer License', prices: [4500, 9000, 18000] },
-    { name: 'Documentation Access', prices: [2250, 4500, 9000] },
-    { name: 'E-commerce Platform', prices: [150000, 250000, 400000] },
-    { name: 'Payment Gateway Setup', prices: [45000, 65000, 85000] },
-    { name: 'Training Session', prices: [13000, 26000, 52000] },
-    { name: 'Consulting Hours', prices: [4500, 9000, 13500] },
-    { name: 'Design Package', prices: [28000, 55000, 110000] },
-    { name: 'Brand Guidelines', prices: [14800, 30000, 60000] },
-    { name: 'SEO Services', prices: [35000, 70000, 140000] },
-    { name: 'Social Media Management', prices: [25000, 50000, 100000] },
-    { name: 'Content Creation', prices: [15000, 30000, 60000] }
-  ];
-
-  const paymentMethods = ['Bank Transfer', 'Credit Card', 'Debit Card', 'UPI', 'PayPal', 'Wire Transfer', 'Cryptocurrency'];
-  const categories = ['Software', 'Hardware', 'Services', 'Consulting', 'Marketing', 'Training', 'License', 'Hosting'];
-  const locations = ['New York, USA', 'London, UK', 'San Francisco, USA', 'Austin, USA', 'Seattle, USA', 'Chicago, USA', 'Boston, USA', 'Miami, USA', 'Denver, USA', 'Portland, USA', 'San Jose, USA', 'Los Angeles, USA', 'Toronto, Canada', 'Berlin, Germany', 'Singapore', 'Tokyo, Japan', 'Sydney, Australia'];
-  const statuses: Array<'success' | 'pending' | 'failed' | 'refunded' | 'processing'> = ['success', 'pending', 'failed', 'refunded', 'processing'];
-
-  const transactions: Transaction[] = [];
-
-  // Generate 60 transactions
-  for (let i = 1; i <= 60; i++) {
-    const customer = customers[Math.floor(Math.random() * customers.length)];
-    const numItems = Math.floor(Math.random() * 4) + 1;
-    const items: TransactionItem[] = [];
-    let grandTotal = 0;
-
-    // Generate random items
-    for (let j = 0; j < numItems; j++) {
-      const product = products[Math.floor(Math.random() * products.length)];
-      const price = product.prices[Math.floor(Math.random() * product.prices.length)];
-      const quantity = Math.floor(Math.random() * 5) + 1;
-      const total = price * quantity;
-      
-      items.push({
-        id: j + 1,
-        name: product.name,
-        quantity,
-        price,
-        total
-      });
-      
-      grandTotal += total;
-    }
-
-    // Random date within last 3 months
-    const date = new Date();
-    date.setDate(date.getDate() - Math.floor(Math.random() * 90));
-    date.setHours(Math.floor(Math.random() * 24), Math.floor(Math.random() * 60), Math.floor(Math.random() * 60));
-
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
-    
-    // Adjust status probability (more success, fewer failed)
-    const statusRand = Math.random();
-    let finalStatus: typeof status;
-    if (statusRand < 0.6) finalStatus = 'success';
-    else if (statusRand < 0.8) finalStatus = 'pending';
-    else if (statusRand < 0.9) finalStatus = 'processing';
-    else if (statusRand < 0.95) finalStatus = 'refunded';
-    else finalStatus = 'failed';
-
-    transactions.push({
-      id: `TXN-2024-${String(i).padStart(3, '0')}`,
-      date,
-      customer,
-      grandTotal,
-      status: finalStatus,
-      items,
-      paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-      transactionId: `pay_${Math.random().toString(36).substring(2, 15)}`,
-      category: categories[Math.floor(Math.random() * categories.length)],
-      location: locations[Math.floor(Math.random() * locations.length)]
-    });
+// Helper function to map API status to frontend status
+const mapAPIStatusToFrontend = (status: string): 'success' | 'pending' | 'processing' | 'failed' | 'refunded' => {
+  switch (status) {
+    case 'Success':
+      return 'success';
+    case 'Pending':
+      return 'pending';
+    case 'Failed':
+      return 'failed';
+    case 'Refunded':
+      return 'refunded';
+    default:
+      return 'pending';
   }
+};
 
-  // Sort by date (newest first)
-  return transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
+// Helper function to map payment method to type filter
+const mapPaymentMethodToType = (method: string): 'QRIS' | 'CASH' | undefined => {
+  if (method === 'QRIS') return 'QRIS';
+  if (method === 'CASH') return 'CASH';
+  return undefined;
 };
 
 export default function TransactionsPage() {
-  const [transactions] = useState<Transaction[]>(generateDummyTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: 20,
+    pages: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState<Date | null>(() => {
     const date = new Date();
-    date.setMonth(date.getMonth() - 1); // Default to last 30 days
+    date.setMonth(date.getMonth() - 1);
     return date;
   });
   const [endDate, setEndDate] = useState<Date | null>(new Date());
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(20);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempStartDate, setTempStartDate] = useState<Date | null>(startDate);
   const [tempEndDate, setTempEndDate] = useState<Date | null>(endDate);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
-  // Get unique categories for filter
-  const categories = ['all', ...new Set(transactions.map(t => t.category))];
+  // Fetch transactions from API
+  const fetchTransactions = useCallback(async (page: number = currentPage) => {
+  try {
+    setLoading(true);
+    setError(null);
 
-  // Filter transactions
+    const params = {
+      page,
+      limit: itemsPerPage,
+      status: mapStatusToAPI(statusFilter),
+      type: mapPaymentMethodToType(typeFilter),
+      startDate: formatDateForAPI(startDate),
+      endDate: formatDateForAPI(endDate)
+    };
+
+    console.log('Fetching with params:', params);
+    
+    const response = await transactionApi.getTransactions(params);
+    console.log('API Response:', response);
+    
+    if (response.success && response.data) {
+      // response.data is the transactions array
+      setTransactions(response.data || []);
+      // response.pagination is separate
+      setPagination(response.pagination || {
+        total: 0,
+        page: 1,
+        limit: 20,
+        pages: 0
+      });
+      console.log('Transactions set:', response.data);
+    } else {
+      setError(response.message || 'Failed to load transactions');
+      setTransactions([]);
+    }
+  } catch (err: any) {
+    console.error('Fetch error:', err);
+    setError(err.response?.data?.message || 'Failed to load transactions');
+    setTransactions([]);
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+}, [currentPage, itemsPerPage, statusFilter, typeFilter, startDate, endDate]);
+
+  // Fetch transaction details
+  const fetchTransactionDetail = async (transactionId: string) => {
+    try {
+      setLoadingDetail(true);
+      const response = await transactionApi.getTransactionDetail(transactionId);
+      if (response.success && response.data) {
+        setSelectedTransaction(response.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch transaction details:', err);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  // Load transactions on mount and when filters change
+  useEffect(() => {
+    fetchTransactions(1);
+  }, [statusFilter, typeFilter, startDate, endDate]);
+
+  // Load transactions when page changes
+  useEffect(() => {
+    if (currentPage !== 1) {
+      fetchTransactions(currentPage);
+    }
+  }, [currentPage]);
+
+  // Handle row expansion
+  const handleExpandRow = async (transactionId: string) => {
+    if (expandedRow === transactionId) {
+      setExpandedRow(null);
+      setSelectedTransaction(null);
+    } else {
+      setExpandedRow(transactionId);
+      await fetchTransactionDetail(transactionId);
+    }
+  };
+
+  // Handle refresh
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchTransactions(currentPage);
+  };
+
+  // Handle search (local filtering)
   const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = 
-      transaction.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.transactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.location.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!searchTerm) return true;
     
-    const matchesStatus = statusFilter === 'all' || transaction.status === statusFilter;
+    const searchLower = searchTerm.toLowerCase();
+    const productName = transaction.metadata?.productInfo?.name?.toLowerCase() || '';
+    const description = transaction.metadata?.description?.toLowerCase() || '';
+    const transactionId = transaction.transactionId?.toLowerCase() || '';
+    const paymentMethod = transaction.paymentMethod?.toLowerCase() || '';
     
-    const matchesCategory = categoryFilter === 'all' || transaction.category === categoryFilter;
-    
-    const matchesDate = (!startDate || transaction.date >= startDate) &&
-                       (!endDate || transaction.date <= endDate);
-    
-    return matchesSearch && matchesStatus && matchesCategory && matchesDate;
+    return (
+      transactionId.includes(searchLower) ||
+      productName.includes(searchLower) ||
+      description.includes(searchLower) ||
+      paymentMethod.includes(searchLower)
+    );
   });
 
-  // Pagination
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredTransactions.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  // Get unique categories from transactions
+  const categories = ['all', ...new Set(
+    transactions
+      .map(t => t.metadata?.productInfo?.category)
+      .filter((category): category is string => category !== undefined && category !== null)
+  )];
 
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter, categoryFilter, startDate, endDate]);
+  // Apply category filter locally
+  const displayedTransactions = filteredTransactions.filter(transaction => {
+    if (categoryFilter === 'all') return true;
+    const category = transaction.metadata?.productInfo?.category;
+    return category === categoryFilter;
+  });
 
   // Calculate metrics
-  const totalRevenue = filteredTransactions.reduce((sum, t) => sum + t.grandTotal, 0);
-  const successfulTransactions = filteredTransactions.filter(t => t.status === 'success').length;
-  const pendingPayouts = filteredTransactions
-    .filter(t => t.status === 'pending' || t.status === 'processing')
-    .reduce((sum, t) => sum + t.grandTotal, 0);
-  const failedTransactions = filteredTransactions.filter(t => t.status === 'failed').length;
-  const averageTransactionValue = filteredTransactions.length > 0 
-    ? totalRevenue / filteredTransactions.length 
+  const totalRevenue = displayedTransactions.reduce((sum, t) => {
+    const amount = parseFloat(t.amount) || 0;
+    return sum + amount;
+  }, 0);
+  
+  const successfulTransactions = displayedTransactions.filter(t => t.status === 'Success').length;
+  
+  const pendingPayouts = displayedTransactions
+    .filter(t => t.status === 'Pending')
+    .reduce((sum, t) => {
+      const amount = parseFloat(t.amount) || 0;
+      return sum + amount;
+    }, 0);
+  
+  const failedTransactions = displayedTransactions.filter(t => t.status === 'Failed').length;
+  
+  const averageTransactionValue = displayedTransactions.length > 0 
+    ? totalRevenue / displayedTransactions.length 
     : 0;
 
   const getStatusStyles = (status: string) => {
-    switch(status) {
+    const frontendStatus = mapAPIStatusToFrontend(status);
+    
+    switch(frontendStatus) {
       case 'success':
         return {
           bg: 'bg-[#10B981]/10',
@@ -280,23 +299,28 @@ export default function TransactionsPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
+  const formatCurrency = (amount: string | number) => {
+    const num = typeof amount === 'string' ? parseFloat(amount) || 0 : amount;
+    return new Intl.NumberFormat('id-ID', {
       style: 'currency',
-      currency: 'INR',
+      currency: 'IDR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount);
+    }).format(num);
   };
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+  const formatDate = (dateString: string) => {
+    try {
+      return new Intl.DateTimeFormat('en-US', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(new Date(dateString));
+    } catch {
+      return 'Invalid Date';
+    }
   };
 
   const handleApplyDateFilter = () => {
@@ -315,12 +339,17 @@ export default function TransactionsPage() {
   };
 
   const handleExport = (format: 'csv' | 'pdf') => {
-    // Implement export logic here
-    console.log(`Exporting ${filteredTransactions.length} transactions as ${format}`);
-    
-    // In a real app, you would generate and download the file
-    alert(`Exporting ${filteredTransactions.length} transactions as ${format} file...`);
+    console.log(`Exporting ${displayedTransactions.length} transactions as ${format}`);
+    alert(`Exporting ${displayedTransactions.length} transactions as ${format} file...`);
   };
+
+  if (loading && !refreshing && transactions.length === 0) {
+    return (
+      <div className="p-4 lg:p-8 flex items-center justify-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-8 space-y-8">
@@ -334,7 +363,16 @@ export default function TransactionsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Date Range Picker - Fixed */}
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#E5E7EB] rounded-xl hover:border-[#F15A22] transition-all duration-300"
+          >
+            <RefreshCw size={16} className={`text-[#6B7280] ${refreshing ? 'animate-spin' : ''}`} />
+            <span className="text-sm text-[#1F2937]">Refresh</span>
+          </button>
+
+          {/* Date Range Picker */}
           <div className="relative">
             <button
               onClick={() => setShowDatePicker(!showDatePicker)}
@@ -347,7 +385,6 @@ export default function TransactionsPage() {
               <ChevronDown size={14} className={`transition-transform ${showDatePicker ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* Date Picker Dropdown */}
             {showDatePicker && (
               <div className="absolute right-0 top-12 z-20 bg-white border border-[#E5E7EB] rounded-xl shadow-2xl p-4 min-w-[300px]">
                 <div className="space-y-4">
@@ -355,7 +392,7 @@ export default function TransactionsPage() {
                     <label className="block text-sm font-medium text-[#1F2937] mb-2">Start Date</label>
                     <DatePicker
                       selected={tempStartDate}
-                      onChange={(date: SetStateAction<Date | null>) => setTempStartDate(date)}
+                      onChange={(date: Date | null) => setTempStartDate(date)}
                       selectsStart
                       startDate={tempStartDate}
                       endDate={tempEndDate}
@@ -368,11 +405,11 @@ export default function TransactionsPage() {
                     <label className="block text-sm font-medium text-[#1F2937] mb-2">End Date</label>
                     <DatePicker
                       selected={tempEndDate}
-                      onChange={(date: SetStateAction<Date | null>) => setTempEndDate(date)}
+                      onChange={(date: Date | null) => setTempEndDate(date)}
                       selectsEnd
                       startDate={tempStartDate}
                       endDate={tempEndDate}
-                      minDate={tempStartDate ?? undefined}
+                      minDate={tempStartDate || undefined}
                       className="w-full px-3 py-2 border border-[#E5E7EB] rounded-lg focus:outline-none focus:border-[#F15A22]"
                       placeholderText="Select end date"
                       dateFormat="dd/MM/yyyy"
@@ -397,7 +434,7 @@ export default function TransactionsPage() {
             )}
           </div>
 
-          {/* Export Button with Dropdown */}
+          {/* Export Button */}
           <div className="relative group">
             <button className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#F15A22] to-[#2DAEAA] text-white rounded-xl hover:shadow-lg transition-all duration-300">
               <Download size={16} />
@@ -423,9 +460,13 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Summary Cards - Enhanced with more metrics */}
+      {/* Error State */}
+      {error && (
+        <ErrorState message={error} onRetry={() => fetchTransactions(currentPage)} />
+      )}
+
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Total Revenue */}
         <div className="bg-white border-2 border-[#1F2937] rounded-xl p-4 hover:shadow-[8px_8px_0px_0px_#F15A22] transition-all duration-300 brutalist-card">
           <div className="flex items-start justify-between">
             <div>
@@ -438,7 +479,6 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        {/* Successful Transactions */}
         <div className="bg-white border-2 border-[#1F2937] rounded-xl p-4 hover:shadow-[8px_8px_0px_0px_#2DAEAA] transition-all duration-300 brutalist-card">
           <div className="flex items-start justify-between">
             <div>
@@ -451,7 +491,6 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        {/* Pending Payouts */}
         <div className="bg-white border-2 border-[#1F2937] rounded-xl p-4 hover:shadow-[8px_8px_0px_0px_#F59E0B] transition-all duration-300 brutalist-card">
           <div className="flex items-start justify-between">
             <div>
@@ -464,7 +503,6 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        {/* Failed Transactions */}
         <div className="bg-white border-2 border-[#1F2937] rounded-xl p-4 hover:shadow-[8px_8px_0px_0px_#EF4444] transition-all duration-300 brutalist-card">
           <div className="flex items-start justify-between">
             <div>
@@ -477,7 +515,6 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        {/* Average Value */}
         <div className="bg-white border-2 border-[#1F2937] rounded-xl p-4 hover:shadow-[8px_8px_0px_0px_#8B5CF6] transition-all duration-300 brutalist-card">
           <div className="flex items-start justify-between">
             <div>
@@ -498,7 +535,7 @@ export default function TransactionsPage() {
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]" />
             <input
               type="text"
-              placeholder="Search by ID, customer, email, location..."
+              placeholder="Search by ID, product, description..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 border border-[#E5E7EB] rounded-lg focus:outline-none focus:border-[#F15A22] transition-colors"
@@ -506,7 +543,6 @@ export default function TransactionsPage() {
           </div>
 
           <div className="flex gap-2">
-            {/* Status Filter */}
             <div className="relative">
               <button
                 onClick={() => setShowFilters(!showFilters)}
@@ -519,34 +555,43 @@ export default function TransactionsPage() {
 
               {showFilters && (
                 <div className="absolute right-0 top-12 w-48 bg-white border border-[#E5E7EB] rounded-lg shadow-xl z-10 p-2">
-                  {['all', 'success', 'pending', 'processing', 'failed', 'refunded'].map((status) => (
+                  {['all', 'Success', 'Pending', 'Failed', 'Refunded'].map((status) => (
                     <button
                       key={status}
                       onClick={() => {
-                        setStatusFilter(status);
+                        setStatusFilter(status.toLowerCase());
                         setShowFilters(false);
                       }}
                       className={`w-full text-left px-2 py-1.5 rounded text-sm capitalize ${
-                        statusFilter === status
+                        statusFilter === status.toLowerCase()
                           ? 'bg-[#F15A22] text-white'
                           : 'hover:bg-[#F3F4F6]'
                       }`}
                     >
-                      {status}
+                      {status === 'all' ? 'All Status' : status}
                     </button>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Category Filter */}
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="px-4 py-2.5 border border-[#E5E7EB] rounded-lg focus:outline-none focus:border-[#F15A22] bg-white"
+            >
+              <option value="all">All Payment Types</option>
+              <option value="QRIS">QRIS</option>
+              <option value="CASH">CASH</option>
+            </select>
+
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="px-4 py-2.5 border border-[#E5E7EB] rounded-lg focus:outline-none focus:border-[#F15A22] bg-white"
             >
               {categories.map(cat => (
-                <option key={cat} value={cat} className="capitalize">
+                <option key={cat} value={cat}>
                   {cat === 'all' ? 'All Categories' : cat}
                 </option>
               ))}
@@ -555,7 +600,7 @@ export default function TransactionsPage() {
         </div>
 
         {/* Active Filters */}
-        {(searchTerm || statusFilter !== 'all' || categoryFilter !== 'all' || startDate || endDate) && (
+        {(searchTerm || statusFilter !== 'all' || typeFilter !== 'all' || categoryFilter !== 'all' || startDate || endDate) && (
           <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-[#E5E7EB]">
             {searchTerm && (
               <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#FFF3ED] text-[#F15A22] rounded-full text-sm">
@@ -569,8 +614,14 @@ export default function TransactionsPage() {
                 <button onClick={() => setStatusFilter('all')}>×</button>
               </span>
             )}
-            {categoryFilter !== 'all' && (
+            {typeFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#EDE9FE] text-[#8B5CF6] rounded-full text-sm">
+                Type: {typeFilter}
+                <button onClick={() => setTypeFilter('all')}>×</button>
+              </span>
+            )}
+            {categoryFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#F3E8FF] text-[#A855F7] rounded-full text-sm">
                 Category: {categoryFilter}
                 <button onClick={() => setCategoryFilter('all')}>×</button>
               </span>
@@ -588,10 +639,13 @@ export default function TransactionsPage() {
       {/* Results count */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-[#6B7280]">
-          Found <span className="font-semibold text-[#1F2937]">{filteredTransactions.length}</span> transactions
+          Found <span className="font-semibold text-[#1F2937]">{pagination.total}</span> transactions
+          {displayedTransactions.length !== pagination.total && (
+            <span> (showing {displayedTransactions.length})</span>
+          )}
         </p>
         <p className="text-xs text-[#6B7280]">
-          Page {currentPage} of {totalPages}
+          Page {pagination.page} of {pagination.pages}
         </p>
       </div>
 
@@ -603,217 +657,284 @@ export default function TransactionsPage() {
               <tr className="bg-gradient-to-r from-[#FFF3ED] to-[#E0F7F6]">
                 <th className="text-left py-4 px-6 text-sm font-semibold text-[#1F2937]">Transaction ID</th>
                 <th className="text-left py-4 px-6 text-sm font-semibold text-[#1F2937]">Date & Time</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold text-[#1F2937]">Customer</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold text-[#1F2937]">Location</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold text-[#1F2937]">Product</th>
                 <th className="text-left py-4 px-6 text-sm font-semibold text-[#1F2937]">Category</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold text-[#1F2937]">Grand Total</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold text-[#1F2937]">Payment Method</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold text-[#1F2937]">Amount</th>
                 <th className="text-left py-4 px-6 text-sm font-semibold text-[#1F2937]">Status</th>
                 <th className="text-left py-4 px-6 text-sm font-semibold text-[#1F2937]">Action</th>
               </tr>
             </thead>
             <tbody>
-              {currentItems.map((transaction) => {
-                const statusStyles = getStatusStyles(transaction.status);
-                const StatusIcon = statusStyles.icon;
-                const isExpanded = expandedRow === transaction.id;
+              {displayedTransactions.length > 0 ? (
+                displayedTransactions.map((transaction) => {
+                  const statusStyles = getStatusStyles(transaction.status);
+                  const StatusIcon = statusStyles.icon;
+                  const isExpanded = expandedRow === transaction.transactionId;
+                  const productInfo = transaction.metadata?.productInfo;
+                  const isLoadingDetail = loadingDetail && expandedRow === transaction.transactionId;
 
-                return (
-                  <>
-                    <tr
-                      key={transaction.id}
-                      className={`border-b border-[#E5E7EB] hover:bg-[#F9FAFB] transition-colors cursor-pointer ${
-                        isExpanded ? 'bg-[#F9FAFB]' : ''
-                      }`}
-                      onClick={() => setExpandedRow(isExpanded ? null : transaction.id)}
-                    >
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-2">
-                          <Hash size={14} className="text-[#6B7280]" />
-                          <span className="font-medium text-[#1F2937]">{transaction.id}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-2">
-                          <Calendar size={14} className="text-[#6B7280]" />
-                          <span className="text-sm text-[#4B5563]">{formatDate(transaction.date)}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gradient-to-br from-[#F15A22] to-[#2DAEAA] rounded-lg flex items-center justify-center text-white font-semibold text-sm">
-                            {transaction.customer.avatar}
+                  return (
+                    <React.Fragment key={transaction.transactionId}>
+                      <tr
+                        className={`border-b border-[#E5E7EB] hover:bg-[#F9FAFB] transition-colors cursor-pointer ${
+                          isExpanded ? 'bg-[#F9FAFB]' : ''
+                        }`}
+                        onClick={() => handleExpandRow(transaction.transactionId)}
+                      >
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-2">
+                            <Hash size={14} className="text-[#6B7280]" />
+                            <span className="font-medium text-[#1F2937] text-sm">
+                              {transaction.transactionId ? transaction.transactionId.slice(0, 8) + '...' : 'N/A'}
+                            </span>
                           </div>
-                          <div>
-                            <p className="font-medium text-[#1F2937]">{transaction.customer.name}</p>
-                            <p className="text-xs text-[#6B7280]">{transaction.customer.email}</p>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-2">
+                            <Calendar size={14} className="text-[#6B7280]" />
+                            <span className="text-sm text-[#4B5563]">
+                              {transaction.transactionDate ? formatDate(transaction.transactionDate) : 'N/A'}
+                            </span>
                           </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className="text-sm text-[#4B5563]">{transaction.location}</span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className="text-sm text-[#4B5563] capitalize">{transaction.category}</span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className="font-bold text-[#1F2937]">{formatCurrency(transaction.grandTotal)}</span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 ${statusStyles.bg} ${statusStyles.text} rounded-full text-sm font-medium`}>
-                          <StatusIcon size={14} />
-                          {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExpandedRow(isExpanded ? null : transaction.id);
-                          }}
-                          className="flex items-center gap-1 text-[#F15A22] hover:text-[#2DAEAA] transition-colors"
-                        >
-                          <Eye size={16} />
-                          <span className="text-sm">Details</span>
-                          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                        </button>
-                      </td>
-                    </tr>
-                    
-                    {/* Expanded Row - Transaction Details */}
-                    {isExpanded && (
-                      <tr className="bg-[#F9FAFB]">
-                        <td colSpan={8} className="p-6">
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-semibold text-[#1F2937] flex items-center gap-2">
-                                <Receipt size={18} className="text-[#F15A22]" />
-                                Transaction Details - {transaction.id}
-                              </h4>
-                              <div className="flex items-center gap-2">
-                                <button className="p-2 hover:bg-white rounded-lg transition-colors">
-                                  <Printer size={16} className="text-[#6B7280]" />
-                                </button>
-                                <button className="p-2 hover:bg-white rounded-lg transition-colors">
-                                  <Share2 size={16} className="text-[#6B7280]" />
-                                </button>
-                                <button className="p-2 hover:bg-white rounded-lg transition-colors">
-                                  <FileText size={16} className="text-[#6B7280]" />
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                              {/* Items List */}
-                              <div className="lg:col-span-2">
-                                <div className="bg-white rounded-lg border border-[#E5E7EB] overflow-hidden">
-                                  <table className="w-full">
-                                    <thead className="bg-[#F3F4F6]">
-                                      <tr>
-                                        <th className="text-left py-2 px-4 text-xs font-semibold text-[#6B7280]">Item</th>
-                                        <th className="text-left py-2 px-4 text-xs font-semibold text-[#6B7280]">Qty</th>
-                                        <th className="text-left py-2 px-4 text-xs font-semibold text-[#6B7280]">Price</th>
-                                        <th className="text-left py-2 px-4 text-xs font-semibold text-[#6B7280]">Total</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {transaction.items.map((item) => (
-                                        <tr key={item.id} className="border-t border-[#E5E7EB]">
-                                          <td className="py-2 px-4">
-                                            <div className="flex items-center gap-2">
-                                              <Package size={14} className="text-[#6B7280]" />
-                                              <span className="text-sm text-[#1F2937]">{item.name}</span>
-                                            </div>
-                                          </td>
-                                          <td className="py-2 px-4 text-sm text-[#4B5563]}">{item.quantity}</td>
-                                          <td className="py-2 px-4 text-sm text-[#4B5563]">{formatCurrency(item.price)}</td>
-                                          <td className="py-2 px-4 text-sm font-medium text-[#1F2937]">{formatCurrency(item.total)}</td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                    <tfoot className="bg-[#F9FAFB] border-t border-[#E5E7EB]">
-                                      <tr>
-                                        <td colSpan={3} className="py-2 px-4 text-right font-semibold text-[#1F2937]">
-                                          Subtotal:
-                                        </td>
-                                        <td className="py-2 px-4 font-bold text-[#F15A22]">
-                                          {formatCurrency(transaction.grandTotal)}
-                                        </td>
-                                      </tr>
-                                    </tfoot>
-                                  </table>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-2">
+                            <Package size={14} className="text-[#6B7280]" />
+                            <span className="text-sm text-[#4B5563]">
+                              {productInfo?.name || transaction.metadata?.description || 'N/A'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className="text-sm text-[#4B5563] capitalize">
+                            {productInfo?.category || 'Uncategorized'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className="text-sm text-[#4B5563]">{transaction.paymentMethod || 'N/A'}</span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className="font-bold text-[#1F2937]">
+                            {transaction.amount ? formatCurrency(transaction.amount) : 'N/A'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className={`inline-flex items-center gap-1 px-3 py-1 ${statusStyles.bg} ${statusStyles.text} rounded-full text-sm font-medium`}>
+                            <StatusIcon size={14} />
+                            {transaction.status || 'Unknown'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExpandRow(transaction.transactionId);
+                            }}
+                            className="flex items-center gap-1 text-[#F15A22] hover:text-[#2DAEAA] transition-colors"
+                          >
+                            {isLoadingDetail ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <>
+                                <Eye size={16} />
+                                <span className="text-sm">Details</span>
+                                {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                              </>
+                            )}
+                          </button>
+                        </td>
+                      </tr>
+                      
+                      {/* Expanded Row - Transaction Details */}
+                      {isExpanded && selectedTransaction && (
+                        <tr className="bg-[#F9FAFB]">
+                          <td colSpan={8} className="p-6">
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-semibold text-[#1F2937] flex items-center gap-2">
+                                  <Receipt size={18} className="text-[#F15A22]" />
+                                  Transaction Details - {selectedTransaction.transactionId}
+                                </h4>
+                                <div className="flex items-center gap-2">
+                                  <button className="p-2 hover:bg-white rounded-lg transition-colors">
+                                    <Printer size={16} className="text-[#6B7280]" />
+                                  </button>
+                                  <button className="p-2 hover:bg-white rounded-lg transition-colors">
+                                    <Share2 size={16} className="text-[#6B7280]" />
+                                  </button>
+                                  <button className="p-2 hover:bg-white rounded-lg transition-colors">
+                                    <FileText size={16} className="text-[#6B7280]" />
+                                  </button>
                                 </div>
                               </div>
 
-                              {/* Payment Summary */}
-                              <div className="bg-white rounded-lg border border-[#E5E7EB] p-4">
-                                <h5 className="font-medium text-[#1F2937] mb-3 flex items-center gap-2">
-                                  <CreditCard size={16} className="text-[#F15A22]" />
-                                  Payment Summary
-                                </h5>
-                                <div className="space-y-2">
-                                  <div className="flex justify-between text-sm">
-                                    <span className="text-[#6B7280]">Transaction ID</span>
-                                    <span className="text-[#1F2937] font-mono text-xs">{transaction.transactionId}</span>
+                              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                {/* Items List */}
+                                <div className="lg:col-span-2">
+                                  <div className="bg-white rounded-lg border border-[#E5E7EB] overflow-hidden">
+                                    <table className="w-full">
+                                      <thead className="bg-[#F3F4F6]">
+                                        <tr>
+                                          <th className="text-left py-2 px-4 text-xs font-semibold text-[#6B7280]">Item</th>
+                                          <th className="text-left py-2 px-4 text-xs font-semibold text-[#6B7280]">SKU</th>
+                                          <th className="text-left py-2 px-4 text-xs font-semibold text-[#6B7280]">Qty</th>
+                                          <th className="text-left py-2 px-4 text-xs font-semibold text-[#6B7280]">Unit Price</th>
+                                          <th className="text-left py-2 px-4 text-xs font-semibold text-[#6B7280]">Total</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {selectedTransaction.metadata?.productInfo && (
+                                          <tr className="border-t border-[#E5E7EB]">
+                                            <td className="py-2 px-4">
+                                              <div className="flex items-center gap-2">
+                                                <Package size={14} className="text-[#6B7280]" />
+                                                <span className="text-sm text-[#1F2937]">
+                                                  {selectedTransaction.metadata.productInfo.name || 'N/A'}
+                                                </span>
+                                              </div>
+                                            </td>
+                                            <td className="py-2 px-4 text-sm text-[#4B5563]">
+                                              {selectedTransaction.metadata.productInfo.sku || 'N/A'}
+                                            </td>
+                                            <td className="py-2 px-4 text-sm text-[#4B5563]">
+                                              {selectedTransaction.metadata.productInfo.quantity || 0}
+                                            </td>
+                                            <td className="py-2 px-4 text-sm text-[#4B5563]">
+                                              {selectedTransaction.metadata.productInfo.unitPrice ? 
+                                                formatCurrency(selectedTransaction.metadata.productInfo.unitPrice) : 'N/A'}
+                                            </td>
+                                            <td className="py-2 px-4 text-sm font-medium text-[#1F2937]">
+                                              {selectedTransaction.metadata.productInfo.totalPrice ? 
+                                                formatCurrency(selectedTransaction.metadata.productInfo.totalPrice) : 'N/A'}
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </tbody>
+                                      <tfoot className="bg-[#F9FAFB] border-t border-[#E5E7EB]">
+                                        <tr>
+                                          <td colSpan={4} className="py-2 px-4 text-right font-semibold text-[#1F2937]">
+                                            Subtotal:
+                                          </td>
+                                          <td className="py-2 px-4 font-bold text-[#F15A22]">
+                                            {selectedTransaction.amount ? formatCurrency(selectedTransaction.amount) : 'N/A'}
+                                          </td>
+                                        </tr>
+                                      </tfoot>
+                                    </table>
                                   </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span className="text-[#6B7280]">Payment Method</span>
-                                    <span className="text-[#1F2937] font-medium">{transaction.paymentMethod}</span>
-                                  </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span className="text-[#6B7280]">Category</span>
-                                    <span className="text-[#1F2937] capitalize">{transaction.category}</span>
-                                  </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span className="text-[#6B7280]">Location</span>
-                                    <span className="text-[#1F2937]">{transaction.location}</span>
-                                  </div>
-                                  <div className="pt-2 mt-2 border-t border-[#E5E7EB]">
-                                    <div className="flex justify-between font-bold">
-                                      <span className="text-[#1F2937]">Total</span>
-                                      <span className="text-[#F15A22]">{formatCurrency(transaction.grandTotal)}</span>
+                                </div>
+
+                                {/* Payment Summary */}
+                                <div className="bg-white rounded-lg border border-[#E5E7EB] p-4">
+                                  <h5 className="font-medium text-[#1F2937] mb-3 flex items-center gap-2">
+                                    <CreditCard size={16} className="text-[#F15A22]" />
+                                    Payment Summary
+                                  </h5>
+                                  <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-[#6B7280]">Transaction ID</span>
+                                      <span className="text-[#1F2937] font-mono text-xs">
+                                        {selectedTransaction.transactionId || 'N/A'}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-[#6B7280]">Payment Method</span>
+                                      <span className="text-[#1F2937] font-medium">
+                                        {selectedTransaction.paymentMethod || 'N/A'}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-[#6B7280]">Payment Channel</span>
+                                      <span className="text-[#1F2937]">
+                                        {selectedTransaction.paymentChannel || 'N/A'}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-[#6B7280]">Category</span>
+                                      <span className="text-[#1F2937] capitalize">
+                                        {selectedTransaction.metadata?.productInfo?.category || 'Uncategorized'}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-[#6B7280]">Refund Status</span>
+                                      <span className={`font-medium ${
+                                        selectedTransaction.refundStatus === 'None' 
+                                          ? 'text-[#10B981]' 
+                                          : 'text-[#F59E0B]'
+                                      }`}>
+                                        {selectedTransaction.refundStatus || 'None'}
+                                      </span>
+                                    </div>
+                                    {selectedTransaction.refundStatus && selectedTransaction.refundStatus !== 'None' && (
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-[#6B7280]">Refund Amount</span>
+                                        <span className="text-[#EF4444]">
+                                          {selectedTransaction.refundAmount ? formatCurrency(selectedTransaction.refundAmount) : 'N/A'}
+                                        </span>
+                                      </div>
+                                    )}
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-[#6B7280]">Chargeback</span>
+                                      <span className={selectedTransaction.chargebackFlag ? 'text-[#EF4444]' : 'text-[#10B981]'}>
+                                        {selectedTransaction.chargebackFlag ? 'Yes' : 'No'}
+                                      </span>
+                                    </div>
+                                    <div className="pt-2 mt-2 border-t border-[#E5E7EB]">
+                                      <div className="flex justify-between font-bold">
+                                        <span className="text-[#1F2937]">Total Amount</span>
+                                        <span className="text-[#F15A22]">
+                                          {selectedTransaction.amount ? formatCurrency(selectedTransaction.amount) : 'N/A'}
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                );
-              })}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-[#6B7280]">
+                    {loading ? 'Loading transactions...' : 'No transactions found'}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
         {/* Pagination */}
-        {filteredTransactions.length > 0 && (
+        {pagination.pages > 1 && (
           <div className="flex items-center justify-between p-4 border-t border-[#E5E7EB]">
             <p className="text-sm text-[#6B7280]">
-              Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredTransactions.length)} of {filteredTransactions.length} transactions
+              Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} transactions
             </p>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
+                disabled={pagination.page === 1}
                 className="p-2 border border-[#E5E7EB] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:border-[#F15A22] transition-colors"
               >
                 <ChevronLeft size={16} />
               </button>
               
-              {/* Page numbers */}
               <div className="flex items-center gap-1">
-                {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                  let pageNum = currentPage;
-                  if (totalPages <= 5) {
+                {[...Array(Math.min(5, pagination.pages))].map((_, i) => {
+                  let pageNum = pagination.page;
+                  if (pagination.pages <= 5) {
                     pageNum = i + 1;
-                  } else if (currentPage <= 3) {
+                  } else if (pagination.page <= 3) {
                     pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
+                  } else if (pagination.page >= pagination.pages - 2) {
+                    pageNum = pagination.pages - 4 + i;
                   } else {
-                    pageNum = currentPage - 2 + i;
+                    pageNum = pagination.page - 2 + i;
                   }
                   
                   return (
@@ -821,7 +942,7 @@ export default function TransactionsPage() {
                       key={i}
                       onClick={() => setCurrentPage(pageNum)}
                       className={`w-8 h-8 rounded-lg text-sm ${
-                        currentPage === pageNum
+                        pagination.page === pageNum
                           ? 'bg-gradient-to-r from-[#F15A22] to-[#2DAEAA] text-white'
                           : 'border border-[#E5E7EB] hover:border-[#F15A22]'
                       }`}
@@ -833,8 +954,8 @@ export default function TransactionsPage() {
               </div>
 
               <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => Math.min(pagination.pages, p + 1))}
+                disabled={pagination.page === pagination.pages}
                 className="p-2 border border-[#E5E7EB] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:border-[#F15A22] transition-colors"
               >
                 <ChevronRight size={16} />

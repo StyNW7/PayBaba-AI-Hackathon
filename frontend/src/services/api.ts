@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
@@ -8,6 +9,8 @@ export interface ApiResponse<T> {
   message: string;
   data: T;
 }
+
+// AUTH
 
 export interface RegisterRequest {
   email: string;
@@ -154,7 +157,7 @@ export const authApi = {
 
 
 
-// Add these interfaces and functions to your existing api.ts
+// Dashboard Overview
 
 export interface MerchantProfile {
   user: {
@@ -216,6 +219,93 @@ export const merchantApi = {
   
   getProductInsights: async (): Promise<ApiResponse<ProductInsights>> => {
     const response = await api.get<ApiResponse<ProductInsights>>('/merchant/product-insights');
+    return response.data;
+  },
+};
+
+
+
+// Transactions
+
+// Add these interfaces and functions to your existing api.ts
+
+export interface TransactionMetadata {
+  description: string;
+  productInfo: {
+    sku: string;
+    name: string;
+    details: string;
+    category: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+  };
+}
+
+export interface Transaction {
+  transactionId: string;
+  merchantId: string;
+  transactionDate: string;
+  amount: string;
+  paymentMethod: 'QRIS' | 'CASH' | string;
+  paymentChannel: string | null;
+  status: 'Success' | 'Pending' | 'Failed' | 'Refunded' | string;
+  refundStatus: 'None' | 'Partial' | 'Full' | string;
+  refundAmount: string;
+  chargebackFlag: boolean;
+  settlementDate: string | null;
+  settlementTime: string | null;
+  feeAmount: string | null;
+  netAmount: string | null;
+  customerId: string | null;
+  metadata: TransactionMetadata;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TransactionDetail extends Transaction {}
+
+export interface TransactionsResponse {
+  data: Transaction[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
+}
+
+export interface TransactionsQueryParams {
+  page?: number;
+  limit?: number;
+  status?: 'Success' | 'Pending' | 'Failed' | 'Refunded' | string;
+  type?: 'QRIS' | 'CASH' | string;
+  startDate?: string;
+  endDate?: string;
+}
+
+// Update the transactionApi.getTransactions method
+// Update the transactionApi response types
+export const transactionApi = {
+  
+  // To this:
+  getTransactions: async (params?: TransactionsQueryParams): Promise<{
+    success: boolean;
+    message?: string;
+    data: Transaction[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      pages: number;
+    };
+  }> => {
+    const response = await api.get('/transactions', { params });
+    return response.data;
+  },
+  
+  getTransactionDetail: async (id: string): Promise<ApiResponse<Transaction>> => {
+    const response = await api.get<ApiResponse<Transaction>>(`/transactions/${id}`);
     return response.data;
   },
 };
