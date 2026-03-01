@@ -109,7 +109,7 @@ npm run dev
         <td width="1%" align="center">Login Page</td>
     </tr>
     <tr>
-        <td width="1%" align="center"><img height="370" src="./images/screenshots/merchant-dashboard.png.png"/></td>
+        <td width="1%" align="center"><img height="370" src="./images/screenshots/merchant-dashboard.png"/></td>
     </tr>
     <tr>
         <td width="1%" align="center">Merchant Dashboard</td>
