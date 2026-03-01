@@ -227,6 +227,11 @@ export const merchantApi = {
     return response.data;
   },
 
+  getLoanTiming: async (): Promise<ApiResponse<LoanTimingData>> => {
+    const response = await api.get<ApiResponse<LoanTimingData>>('/merchant/loan-timing');
+    return response.data;
+  },
+
 };
 
 
@@ -360,6 +365,15 @@ export interface CreditDetail {
   calculatedAt: string;
 }
 
+
+// Smart Time Loan
+
+export interface LoanTimingData {
+  recommended_week: number;
+  confidence: number;
+  reasoning: string;
+  date_range: string;
+}
 
 
 export default api;

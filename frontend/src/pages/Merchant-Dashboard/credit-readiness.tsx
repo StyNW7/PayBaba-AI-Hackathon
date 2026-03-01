@@ -83,7 +83,7 @@ export default function CreditReadinessPage() {
     if (!creditData) return [];
     
     const { components } = creditData;
-    const totalScore = creditData.score;
+    // const totalScore = creditData.score;
     
     return [
       { 

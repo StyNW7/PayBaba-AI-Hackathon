@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Calendar,
   CheckCircle,
@@ -35,53 +35,105 @@ import {
   Line,
   Cell
 } from 'recharts';
+import { merchantApi, type LoanTimingData } from '@/services/api';
+import LoadingSpinner from '@/components/loading-spinner';
+import ErrorState from '@/components/error-state';
 
-// Dummy data
-const loanData = {
-  optimal_week: "Week 2-3",
-  optimal_month: "March 2026",
-  start_date: "March 9, 2026",
-  end_date: "March 23, 2026",
-  min_limit: 65,
-  max_limit: 85,
-  weekly_revenue: [25, 32, 35, 28], // in millions
-  monthly_comparison: [
+// Helper function to format date range
+const formatDateRange = (dateRange: string) => {
+  if (!dateRange) return '';
+  try {
+    const [start, end] = dateRange.split(' to ');
+    const startDate = new Date(start).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    const endDate = new Date(end).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    return `${startDate} - ${endDate}`;
+  } catch {
+    return dateRange;
+  }
+};
+
+// Get month name from date range
+const getMonthFromDateRange = (dateRange: string) => {
+  if (!dateRange) return 'March 2026';
+  try {
+    const [start] = dateRange.split(' to ');
+    return new Date(start).toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric'
+    });
+  } catch {
+    return 'March 2026';
+  }
+};
+
+// Get week display name
+const getWeekDisplay = (weekNumber: number) => {
+  const weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+  return weeks[weekNumber - 1] || `Week ${weekNumber}`;
+};
+
+// Dummy data for charts (since API doesn't provide this)
+const generateWeeklyData = (recommendedWeek: number) => {
+  const weeklyData = [
+    { name: 'Week 1', amount: 25, status: recommendedWeek === 1 ? 'optimal' : 'neutral' },
+    { name: 'Week 2', amount: 32, status: recommendedWeek === 2 ? 'optimal' : 'neutral' },
+    { name: 'Week 3', amount: 35, status: recommendedWeek === 3 ? 'optimal' : 'neutral' },
+    { name: 'Week 4', amount: 28, status: recommendedWeek === 4 ? 'optimal' : 'neutral' },
+  ];
+  return weeklyData;
+};
+
+const generateMonthlyComparison = () => {
+  return [
     { month: 'Jan', week1: 24, week2: 31, week3: 34, week4: 27 },
     { month: 'Feb', week1: 25, week2: 32, week3: 35, week4: 28 },
     { month: 'Mar', week1: 26, week2: 33, week3: 36, week4: 29 },
-  ],
-  supporting_factors: [
-    { factor: "Refund Rate", value: "0.2%", status: "positive", icon: Shield },
-    { factor: "Settlement Time", value: "1.2 days", status: "positive", icon: Clock },
-    { factor: "Transaction Volume", value: "Rp 35M", status: "positive", icon: TrendingUp },
-  ],
-  recommendation_amount: 70,
-  recommendation_purpose: "Lebaran stock preparation",
-  confidence_score: 94,
-  analysis_period: "6 months"
-};
-
-// Weekly pattern data for chart
-const weeklyData = [
-  { name: 'Week 1', amount: 25, status: 'neutral' },
-  { name: 'Week 2', amount: 32, status: 'optimal' },
-  { name: 'Week 3', amount: 35, status: 'optimal' },
-  { name: 'Week 4', amount: 28, status: 'neutral' },
-];
-
-// AI insights
-const aiExplanation = {
-  weekly_pattern: [
-    { week: "Week 1", amount: 25, trend: "fluctuating", optimal: false },
-    { week: "Week 2", amount: 32, trend: "stable", optimal: true },
-    { week: "Week 3", amount: 35, trend: "peak", optimal: true },
-    { week: "Week 4", amount: 28, trend: "declining", optimal: false },
-  ]
+  ];
 };
 
 export default function SmartLoanPage() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [loanData, setLoanData] = useState<LoanTimingData | null>(null);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  const [selectedAmount, setSelectedAmount] = useState(loanData.recommendation_amount);
+  const [selectedAmount, setSelectedAmount] = useState(70);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Fetch loan timing data from API
+  const fetchLoanTimingData = async () => {
+    try {
+      setError(null);
+      const response = await merchantApi.getLoanTiming();
+      
+      if (response.success && response.data) {
+        setLoanData(response.data);
+      } else {
+        setError(response.message || 'Failed to load loan timing data');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to load loan timing data');
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLoanTimingData();
+  }, []);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    fetchLoanTimingData();
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -106,6 +158,36 @@ export default function SmartLoanPage() {
     return null;
   };
 
+  if (loading && !loanData) {
+    return (
+      <div className="p-4 lg:p-8 flex items-center justify-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 lg:p-8">
+        <ErrorState message={error} onRetry={fetchLoanTimingData} />
+      </div>
+    );
+  }
+
+  if (!loanData) {
+    return (
+      <div className="p-4 lg:p-8">
+        <ErrorState message="No loan timing data available" onRetry={fetchLoanTimingData} />
+      </div>
+    );
+  }
+
+  const weeklyData = generateWeeklyData(loanData.recommended_week);
+  const monthlyComparison = generateMonthlyComparison();
+  const optimalMonth = getMonthFromDateRange(loanData.date_range);
+  const formattedDateRange = formatDateRange(loanData.date_range);
+  const recommendedWeekDisplay = getWeekDisplay(loanData.recommended_week);
+
   return (
     <div className="p-4 lg:p-8 space-y-8">
       {/* Header */}
@@ -122,24 +204,22 @@ export default function SmartLoanPage() {
           <p className="text-[#6B7280] mt-2">AI-powered analysis to optimize your loan application timing</p>
         </div>
 
-        {/* Confidence Score */}
-        <div className="flex items-center gap-3 bg-white rounded-xl border border-[#E5E7EB] p-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-[#10B981] to-[#2DAEAA] rounded-xl flex items-center justify-center">
-            <Brain size={24} className="text-white" />
-          </div>
-          <div>
-            <p className="text-sm text-[#6B7280]">AI Confidence</p>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-[#1F2937]">{loanData.confidence_score}%</span>
-              <div className="w-16 h-2 bg-[#E5E7EB] rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-[#F15A22] to-[#2DAEAA] rounded-full"
-                  style={{ width: `${loanData.confidence_score}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Refresh Button */}
+        <button 
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border border-[#E5E7EB] hover:border-[#F15A22] transition-all duration-300 group"
+        >
+          <svg 
+            className={`w-4 h-4 text-[#6B7280] group-hover:text-[#F15A22] transition-all ${isRefreshing ? 'animate-spin' : ''}`} 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span className="text-sm font-medium text-[#1F2937]">Refresh</span>
+        </button>
       </div>
 
       {/* Section 1: Main Recommendation Card */}
@@ -154,40 +234,45 @@ export default function SmartLoanPage() {
             </div>
             
             <h2 className="text-3xl lg:text-4xl font-bold mb-3">
-              {loanData.optimal_week} {loanData.optimal_month}
+              {recommendedWeekDisplay} {optimalMonth}
             </h2>
             
             <div className="flex items-center gap-2 text-white/90 text-lg mb-4">
               <CalendarClock size={20} />
-              <span>{loanData.start_date} - {loanData.end_date}</span>
+              <span>{formattedDateRange}</span>
             </div>
 
             <div className="flex items-center gap-3 mb-6">
               <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2">
                 <p className="text-sm text-white/80">Estimated Limit</p>
                 <p className="text-2xl font-bold">
-                  Rp {loanData.min_limit}-{loanData.max_limit} Million
+                  Rp 65-85 Million
                 </p>
               </div>
               
               <div className="bg-[#FCD34D] text-[#1F2937] px-4 py-2 rounded-xl flex items-center gap-2 font-semibold">
                 <CheckCircle size={18} />
-                High Recommendation
+                {loanData.confidence >= 80 ? 'High Recommendation' : 'Recommended'}
               </div>
             </div>
 
             {/* Quick Stats */}
             <div className="grid grid-cols-3 gap-3">
-              {loanData.supporting_factors.map((factor, idx) => {
-                const Icon = factor.icon;
-                return (
-                  <div key={idx} className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
-                    <Icon size={16} className="mb-1" />
-                    <p className="text-xs text-white/80">{factor.factor}</p>
-                    <p className="text-sm font-bold">{factor.value}</p>
-                  </div>
-                );
-              })}
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+                <Shield size={16} className="mb-1" />
+                <p className="text-xs text-white/80">Refund Rate</p>
+                <p className="text-sm font-bold">0.2%</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+                <Clock size={16} className="mb-1" />
+                <p className="text-xs text-white/80">Settlement</p>
+                <p className="text-sm font-bold">1.2 days</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+                <TrendingUp size={16} className="mb-1" />
+                <p className="text-xs text-white/80">Volume</p>
+                <p className="text-sm font-bold">Rp 35M</p>
+              </div>
             </div>
           </div>
 
@@ -208,7 +293,7 @@ export default function SmartLoanPage() {
           </div>
           <div>
             <h2 className="text-xl font-bold text-[#1F2937]">AI Analysis by Qwen</h2>
-            <p className="text-sm text-[#6B7280]">Based on {loanData.analysis_period} transaction analysis</p>
+            <p className="text-sm text-[#6B7280]">Based on 6 months transaction analysis</p>
           </div>
         </div>
 
@@ -221,27 +306,27 @@ export default function SmartLoanPage() {
             </h3>
             
             <div className="space-y-3">
-              {aiExplanation.weekly_pattern.map((week, idx) => (
+              {weeklyData.map((week, idx) => (
                 <div 
                   key={idx}
                   className={`flex items-center justify-between p-3 rounded-lg transition-all duration-300 hover:translate-x-1 ${
-                    week.optimal ? 'bg-[#10B981]/10 border border-[#10B981]/20' : 'bg-white'
+                    week.status === 'optimal' ? 'bg-[#10B981]/10 border border-[#10B981]/20' : 'bg-white'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                      week.optimal ? 'bg-[#10B981]' : 'bg-[#F3F4F6]'
+                      week.status === 'optimal' ? 'bg-[#10B981]' : 'bg-[#F3F4F6]'
                     }`}>
-                      <span className={`text-sm font-bold ${week.optimal ? 'text-white' : 'text-[#6B7280]'}`}>
+                      <span className={`text-sm font-bold ${week.status === 'optimal' ? 'text-white' : 'text-[#6B7280]'}`}>
                         {idx + 1}
                       </span>
                     </div>
                     <div>
-                      <p className="font-medium text-[#1F2937]">{week.week}</p>
-                      <p className="text-sm text-[#6B7280]">Rp {week.amount}M ({week.trend})</p>
+                      <p className="font-medium text-[#1F2937]">{week.name}</p>
+                      <p className="text-sm text-[#6B7280]">Rp {week.amount}M</p>
                     </div>
                   </div>
-                  {week.optimal && (
+                  {week.status === 'optimal' && (
                     <CheckCircle size={18} className="text-[#10B981]" />
                   )}
                 </div>
@@ -249,27 +334,18 @@ export default function SmartLoanPage() {
             </div>
           </div>
 
-          {/* Supporting Factors & Recommendation */}
+          {/* Reasoning & Recommendation */}
           <div className="space-y-4">
             <div>
               <h3 className="font-semibold text-[#1F2937] flex items-center gap-2 mb-3">
                 <Target size={18} className="text-[#2DAEAA]" />
-                🔍 Supporting Factors
+                🔍 AI Reasoning
               </h3>
               
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
-                  <Shield size={16} className="text-[#10B981]" />
-                  <span className="text-sm">Lowest refund rate in weeks 2-3 (0.2%)</span>
-                </div>
-                <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
-                  <Clock size={16} className="text-[#10B981]" />
-                  <span className="text-sm">Fastest settlement in this period (1.2 days)</span>
-                </div>
-                <div className="flex items-center gap-2 p-2 bg-white rounded-lg">
-                  <TrendingUp size={16} className="text-[#10B981]" />
-                  <span className="text-sm">Consistent high transaction volume</span>
-                </div>
+              <div className="bg-white p-4 rounded-lg">
+                <p className="text-sm text-[#4B5563] leading-relaxed">
+                  {loanData.reasoning}
+                </p>
               </div>
             </div>
 
@@ -279,9 +355,9 @@ export default function SmartLoanPage() {
                 🎯 Recommendation
               </h3>
               <p className="text-[#1F2937]">
-                Apply for <span className="font-bold text-[#F15A22]">Rp {loanData.recommendation_amount} million</span>{' '}
-                for <span className="font-semibold">{loanData.recommendation_purpose}</span>{' '}
-                in <span className="font-semibold text-[#2DAEAA]">week 2 next month</span>.
+                Apply for <span className="font-bold text-[#F15A22]">Rp 70 million</span>{' '}
+                for <span className="font-semibold">business expansion</span>{' '}
+                in <span className="font-semibold text-[#2DAEAA]">{recommendedWeekDisplay.toLowerCase()}</span>.
               </p>
             </div>
 
@@ -289,10 +365,13 @@ export default function SmartLoanPage() {
             <div className="bg-white rounded-lg p-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-[#6B7280]">Prediction Accuracy</span>
-                <span className="text-xs font-semibold text-[#1F2937]">94%</span>
+                <span className="text-xs font-semibold text-[#1F2937]">{loanData.confidence}%</span>
               </div>
               <div className="h-1.5 bg-[#E5E7EB] rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-[#F15A22] to-[#2DAEAA] rounded-full" style={{ width: '94%' }} />
+                <div 
+                  className="h-full bg-gradient-to-r from-[#F15A22] to-[#2DAEAA] rounded-full" 
+                  style={{ width: `${loanData.confidence}%` }} 
+                />
               </div>
             </div>
           </div>
@@ -378,9 +457,9 @@ export default function SmartLoanPage() {
               </tr>
             </thead>
             <tbody>
-              {loanData.monthly_comparison.map((month, idx) => {
+              {monthlyComparison.map((month, idx) => {
                 const avgOptimal = (month.week2 + month.week3) / 2;
-                const prevMonth = idx > 0 ? loanData.monthly_comparison[idx - 1] : null;
+                const prevMonth = idx > 0 ? monthlyComparison[idx - 1] : null;
                 const growth = prevMonth ? ((avgOptimal - (prevMonth.week2 + prevMonth.week3) / 2) / ((prevMonth.week2 + prevMonth.week3) / 2) * 100).toFixed(1) : null;
                 
                 return (
@@ -417,7 +496,7 @@ export default function SmartLoanPage() {
           <div className="mt-6 pt-6 border-t border-[#E5E7EB]">
             <h3 className="text-sm font-semibold text-[#1F2937] mb-4">Weekly Trend Analysis</h3>
             <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={loanData.monthly_comparison}>
+              <LineChart data={monthlyComparison}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis dataKey="month" stroke="#6B7280" />
                 <YAxis stroke="#6B7280" />
