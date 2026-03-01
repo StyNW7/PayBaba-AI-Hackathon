@@ -47,6 +47,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import CreateTransactionPage from "./pages/Merchant-Dashboard/create-transaction";
 import LoanApplicationsPage from "./pages/Bank-Dashboard/loans";
 import CreateLoanApplicationPage from "./pages/Bank-Dashboard/create-loan";
+import BankLimitSimulatorPage from "./pages/Bank-Dashboard/limit-simulator";
 
 function App() {
 
@@ -163,7 +164,7 @@ function App() {
 
             <Route path="/bank/dashboard/simulation" element={
               <ProtectedRoute>
-                <BankDashboardLayout children={<LimitSimulatorPage/>}/>
+                <BankDashboardLayout children={<BankLimitSimulatorPage/>}/>
               </ProtectedRoute>
             } />
 
