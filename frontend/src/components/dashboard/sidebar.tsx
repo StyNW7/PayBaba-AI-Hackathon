@@ -13,7 +13,8 @@ import {
   Bell,
   CreditCard,
   HelpCircle,
-  ChevronRight
+  ChevronRight,
+  FileText
 } from 'lucide-react';
 import { useLocation } from 'react-router';
 import { useNavigate } from 'react-router';
@@ -50,9 +51,9 @@ export default function Sidebar() {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/merchant/dashboard', active: true },
     { icon: TrendingUp, label: 'Smart Loan Timing', href: '/merchant/dashboard/analytics' },
+    { icon: FileText, label: 'Create Transaction', href: '/merchant/dashboard/create-transaction' },
     { icon: Wallet, label: 'Transactions', href: '/merchant/dashboard/transactions' },
     { icon: CreditCard, label: 'Credit', href: '/merchant/dashboard/credit' },
-    // { icon: FileText, label: 'Limit Simulator', href: '/merchant/dashboard/simulator' },
     { icon: Users, label: 'Team', href: '/merchant/dashboard/team' },
     { icon: Bell, label: 'Notifications', href: '/merchant/dashboard/notifications', badge: 3 },
     { icon: Settings, label: 'Settings', href: '/merchant/dashboard/settings' },

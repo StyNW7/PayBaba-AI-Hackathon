@@ -319,6 +319,12 @@ export const transactionApi = {
     const response = await api.get<ApiResponse<Transaction>>(`/transactions/${id}`);
     return response.data;
   },
+
+   createTransaction: async (data: CreateTransactionRequest): Promise<ApiResponse<CreateTransactionResponse>> => {
+    const response = await api.post<ApiResponse<CreateTransactionResponse>>('/transactions/create', data);
+    return response.data;
+  },
+
 };
 
 
@@ -491,6 +497,36 @@ export interface MerchantAlert {
   merchantId: string;
   summary: AlertSummary;
   alerts: any[]; // The alerts array from your API (empty in your example)
+}
+
+
+// CREATE TRANSACTION
+
+export interface ProductInfoItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  type: string;
+  url: string;
+}
+
+export interface CreateTransactionRequest {
+  type: 'QRIS' | 'CASH';
+  amount: number;
+  description: string;
+  productName: string;
+  productInfo: ProductInfoItem[];
+}
+
+export interface CreateTransactionResponse {
+  transactionId: string;
+  amount: string;
+  status: string;
+  qrCode: string;
+  qrisUrl: string;
+  expiredTime: string;
+  productInfo: ProductInfoItem[];
 }
 
 

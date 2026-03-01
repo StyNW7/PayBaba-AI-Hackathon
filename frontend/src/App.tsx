@@ -44,6 +44,7 @@ import PayBabaDashboardLayout from "./pages/PayBaba-Dashboard/layout";
 import MonetizationDashboardPage from "./pages/PayBaba-Dashboard/monetization";
 import AIOpsDashboardPage from "./pages/PayBaba-Dashboard/ai-ops";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import CreateTransactionPage from "./pages/Merchant-Dashboard/create-transaction";
 
 function App() {
 
@@ -93,6 +94,12 @@ function App() {
             <Route path="/merchant/dashboard/credit" element={
               <ProtectedRoute>
                 <DashboardLayout children={<CreditReadinessPage/>}/>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/merchant/dashboard/create-transaction" element={
+              <ProtectedRoute>
+                <DashboardLayout children={<CreateTransactionPage/>}/>
               </ProtectedRoute>
             } />
             
@@ -164,7 +171,7 @@ function App() {
                 <PayBabaDashboardLayout children={<MonetizationDashboardPage/>}/>
               </ProtectedRoute>
             } />
-            
+
             <Route path="/paybaba/dashboard/ai" element={
               <ProtectedRoute>
                 <PayBabaDashboardLayout children={<AIOpsDashboardPage/>}/>
