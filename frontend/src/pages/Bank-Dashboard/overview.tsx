@@ -2,7 +2,7 @@
 /* eslint-disable prefer-const */
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Search,
   ChevronDown,
@@ -22,92 +22,99 @@ import {
   ArrowUpDown,
 } from 'lucide-react';
 import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-
-// Types
-interface Merchant {
-  id: number;
-  name: string;
-  category: string;
-  score: number;
-  risk: 'Low' | 'Medium' | 'High';
-  monthlyRevenue: number;
-  status: 'Ready' | 'In Process' | 'Approved';
-  avatar?: string;
-  location: string;
-  joinDate: string;
-  lastActive: string;
-}
-
-// Generate dummy data
-const generateMerchants = (): Merchant[] => {
-  const categories = ['Food', 'Fashion', 'Electronics', 'Home & Living', 'Health & Beauty', 'Automotive', 'Education', 'Services'];
-  const names = [
-    'Warung Budi', 'Toko Sari', 'Ayam Gepuk', 'Bakso Pakde', 'Sate Khas', 'Nasi Goreng',
-    'Toko Elektronik', 'Fashion Muslim', 'Batik Modern', 'Tas & Sepatu', 'Pakaian Anak',
-    'Smartphone Gallery', 'Komputer Center', 'Camera Store', 'Audio Pro', 'Gaming Zone',
-    'Furniture Home', 'Dekorasi Rumah', 'Peralatan Dapur', 'Spring Bed', 'Lemari Minimalis',
-    'Klinik Kecantikan', 'Salon & Spa', 'Fitness Center', 'Obat Herbal', 'Vitamin Shop',
-    'Bengkel Mobil', 'Cuci Motor', 'Spare Part', 'Aksesoris Mobil', 'Service Center',
-    'Bimbingan Belajar', 'Kursus Bahasa', 'Les Privat', 'Sekolah Musik', 'Pelatihan Kerja',
-    'Laundry Kiloan', 'Jasa Kebersihan', 'Fotografi', 'Event Organizer', 'Wedding Planner'
-  ];
-  
-  const statuses: ('Ready' | 'In Process' | 'Approved')[] = ['Ready', 'In Process', 'Approved'];
-  const risks: ('Low' | 'Medium' | 'High')[] = ['Low', 'Medium', 'High'];
-  const locations = ['Jakarta', 'Surabaya', 'Bandung', 'Medan', 'Semarang', 'Makassar', 'Palembang', 'Denpasar'];
-
-  const merchants: Merchant[] = [];
-
-  for (let i = 1; i <= 50; i++) {
-    const randomRisk = risks[Math.floor(Math.random() * risks.length)];
-    let score: number;
-    
-    // Score based on risk
-    if (randomRisk === 'Low') score = Math.floor(Math.random() * 15) + 85; // 85-100
-    else if (randomRisk === 'Medium') score = Math.floor(Math.random() * 15) + 70; // 70-84
-    else score = Math.floor(Math.random() * 20) + 50; // 50-69
-
-    const monthlyRevenue = Math.floor(Math.random() * 100) + 10; // 10-110 million
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
-    
-    merchants.push({
-      id: i,
-      name: names[Math.floor(Math.random() * names.length)],
-      category: categories[Math.floor(Math.random() * categories.length)],
-      score,
-      risk: randomRisk,
-      monthlyRevenue,
-      status,
-      avatar: names[i % names.length].substring(0, 2).toUpperCase(),
-      location: locations[Math.floor(Math.random() * locations.length)],
-      joinDate: `2024-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')}`,
-      lastActive: `${Math.floor(Math.random() * 24)} hours ago`
-    });
-  }
-
-  // Sort by score descending
-  return merchants.sort((a, b) => b.score - a.score);
-};
+import { bankApi, type BankMerchant, type MerchantDetail } from '@/services/api';
+import LoadingSpinner from '@/components/loading-spinner';
+import ErrorState from '@/components/error-state';
 
 export default function BankDashboardPage() {
-  const [merchants] = useState<Merchant[]>(generateMerchants);
+  const [merchants, setMerchants] = useState<BankMerchant[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [riskFilter, setRiskFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Merchant; direction: 'asc' | 'desc' } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedRisk, setSelectedRisk] = useState<string | null>(null);
-  const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null);
+  const [selectedMerchant, setSelectedMerchant] = useState<MerchantDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  // Fetch merchants from API
+  const fetchMerchants = useCallback(async (offset: number = 0) => {
+    try {
+      setError(null);
+      const response = await bankApi.getAllMerchants(itemsPerPage, offset);
+      
+      if (response.success && response.data) {
+        // Map API merchants to our interface
+        const mappedMerchants = response.data.merchants.map(m => ({
+          ...m,
+          // Generate a unique ID for frontend use (since we need numeric ID for table)
+          id: String(parseInt(m.merchantId.replace(/\D/g, '').slice(-6)) || Math.floor(Math.random() * 10000)),
+          name: m.companyName,
+          location: m.city,
+          category: m.businessCategory,
+          risk: m.riskBand as 'Low' | 'Medium' | 'High',
+          creditScore: m.creditScore,
+          monthlyRevenue: m.monthlyRevenue / 1000000, // Convert to millions
+          // Generate status based on credit score (for demo purposes)
+          status: m.creditScore >= 70 ? 'Ready' : m.creditScore >= 50 ? 'In Process' : 'Approved',
+          avatar: m.companyName.substring(0, 2).toUpperCase(),
+          joinDate: new Date().toISOString().split('T')[0],
+          lastActive: 'Today'
+        }));
+        
+        setMerchants(mappedMerchants);
+        setTotalCount(response.data.count);
+      } else {
+        setError(response.message || 'Failed to load merchants');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to load merchants');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [itemsPerPage]);
+
+  // Fetch merchant detail
+  const fetchMerchantDetail = async (merchantId: string) => {
+    try {
+      setLoadingDetail(true);
+      const response = await bankApi.getMerchantDetail(merchantId);
+      if (response.success && response.data) {
+        setSelectedMerchant(response.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch merchant details:', err);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  // Load merchants on mount
+  useEffect(() => {
+    fetchMerchants();
+  }, [fetchMerchants]);
+
+  // Handle page change
+  useEffect(() => {
+    const offset = (currentPage - 1) * itemsPerPage;
+    fetchMerchants(offset);
+  }, [currentPage, itemsPerPage, fetchMerchants]);
 
   // Calculate stats
   const stats = {
-    total: merchants.length,
+    total: totalCount,
     ready: merchants.filter(m => m.status === 'Ready').length,
     inProcess: merchants.filter(m => m.status === 'In Process').length,
     approved: merchants.filter(m => m.status === 'Approved').length,
-    totalPotential: merchants.reduce((sum, m) => sum + (m.monthlyRevenue * 0.8), 0) // 80% of monthly revenue as potential loan
+    totalPotential: merchants.reduce((sum, m) => sum + (m.monthlyRevenue * 0.8), 0)
   };
 
   // Risk distribution
@@ -116,21 +123,21 @@ export default function BankDashboardPage() {
       name: 'Low Risk', 
       value: merchants.filter(m => m.risk === 'Low').length,
       count: merchants.filter(m => m.risk === 'Low').length,
-      percentage: Math.round((merchants.filter(m => m.risk === 'Low').length / merchants.length) * 100),
+      percentage: merchants.length > 0 ? Math.round((merchants.filter(m => m.risk === 'Low').length / merchants.length) * 100) : 0,
       color: '#10B981'
     },
     { 
       name: 'Medium Risk', 
       value: merchants.filter(m => m.risk === 'Medium').length,
       count: merchants.filter(m => m.risk === 'Medium').length,
-      percentage: Math.round((merchants.filter(m => m.risk === 'Medium').length / merchants.length) * 100),
+      percentage: merchants.length > 0 ? Math.round((merchants.filter(m => m.risk === 'Medium').length / merchants.length) * 100) : 0,
       color: '#F59E0B'
     },
     { 
       name: 'High Risk', 
       value: merchants.filter(m => m.risk === 'High').length,
       count: merchants.filter(m => m.risk === 'High').length,
-      percentage: Math.round((merchants.filter(m => m.risk === 'High').length / merchants.length) * 100),
+      percentage: merchants.length > 0 ? Math.round((merchants.filter(m => m.risk === 'High').length / merchants.length) * 100) : 0,
       color: '#EF4444'
     }
   ];
@@ -160,16 +167,16 @@ export default function BankDashboardPage() {
     let sortableMerchants = [...filteredMerchants];
     if (sortConfig !== null) {
       sortableMerchants.sort((a, b) => {
-        const aValue = a[sortConfig!.key];
-        const bValue = b[sortConfig!.key];
+        const aValue = a[sortConfig.key as keyof typeof a];
+        const bValue = b[sortConfig.key as keyof typeof b];
         if (aValue == null || bValue == null) {
           return 0;
         }
         if (aValue < bValue) {
-          return sortConfig!.direction === 'asc' ? -1 : 1;
+          return sortConfig.direction === 'asc' ? -1 : 1;
         }
         if (aValue > bValue) {
-          return sortConfig!.direction === 'asc' ? 1 : -1;
+          return sortConfig.direction === 'asc' ? 1 : -1;
         }
         return 0;
       });
@@ -188,7 +195,7 @@ export default function BankDashboardPage() {
     setCurrentPage(1);
   }, [searchTerm, riskFilter, statusFilter, categoryFilter, selectedRisk]);
 
-  const requestSort = (key: keyof Merchant) => {
+  const requestSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
@@ -196,7 +203,7 @@ export default function BankDashboardPage() {
     setSortConfig({ key, direction });
   };
 
-  const getSortIcon = (key: keyof Merchant) => {
+  const getSortIcon = (key: string) => {
     if (!sortConfig || sortConfig.key !== key) {
       return <ArrowUpDown size={14} className="text-[#6B7280]" />;
     }
@@ -256,14 +263,27 @@ export default function BankDashboardPage() {
     }).format(amount * 1000000);
   };
 
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat('id-ID').format(num);
+  };
+
   const handleExport = () => {
     // Implement export logic
     console.log('Exporting data...');
   };
 
   const handleRefresh = () => {
-    // Implement refresh logic
-    window.location.reload();
+    setRefreshing(true);
+    const offset = (currentPage - 1) * itemsPerPage;
+    fetchMerchants(offset);
+  };
+
+  const handleViewMerchant = async (merchant: any) => {
+    // Find the original merchant ID from the mapped merchant
+    const originalMerchant = merchants.find(m => m.id === merchant.id);
+    if (originalMerchant) {
+      await fetchMerchantDetail(originalMerchant.merchantId);
+    }
   };
 
   const CustomTooltip = ({ active, payload }: any) => {
@@ -305,6 +325,14 @@ export default function BankDashboardPage() {
     );
   };
 
+  if (loading && !refreshing && merchants.length === 0) {
+    return (
+      <div className="p-4 lg:p-8 flex items-center justify-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 lg:p-8 space-y-8">
       {/* Header */}
@@ -319,9 +347,10 @@ export default function BankDashboardPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={handleRefresh}
+            disabled={refreshing}
             className="p-2.5 border border-[#E5E7EB] rounded-xl hover:border-[#F15A22] transition-colors"
           >
-            <RefreshCw size={18} className="text-[#6B7280]" />
+            <RefreshCw size={18} className={`text-[#6B7280] ${refreshing ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={handleExport}
@@ -333,6 +362,14 @@ export default function BankDashboardPage() {
         </div>
       </div>
 
+      {/* Error State */}
+      {error && (
+        <ErrorState message={error} onRetry={() => {
+          const offset = (currentPage - 1) * itemsPerPage;
+          fetchMerchants(offset);
+        }} />
+      )}
+
       {/* Header Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Merchants */}
@@ -340,7 +377,7 @@ export default function BankDashboardPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-[#6B7280] mb-1">Total Merchants</p>
-              <h3 className="text-2xl font-bold text-[#1F2937]">{stats.total.toLocaleString()}</h3>
+              <h3 className="text-2xl font-bold text-[#1F2937]">{formatNumber(stats.total)}</h3>
             </div>
             <div className="w-10 h-10 bg-[#FFF3ED] rounded-lg flex items-center justify-center">
               <Users size={20} className="text-[#F15A22]" />
@@ -348,7 +385,7 @@ export default function BankDashboardPage() {
           </div>
           <div className="mt-2 flex items-center gap-1 text-xs text-[#10B981]">
             <TrendingUp size={12} />
-            <span>+12% from last month</span>
+            <span>Based on current filters</span>
           </div>
         </div>
 
@@ -357,7 +394,7 @@ export default function BankDashboardPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-[#6B7280] mb-1">Ready to Submit</p>
-              <h3 className="text-2xl font-bold text-[#1F2937]">{stats.ready.toLocaleString()}</h3>
+              <h3 className="text-2xl font-bold text-[#1F2937]">{formatNumber(stats.ready)}</h3>
             </div>
             <div className="w-10 h-10 bg-[#E0F7F6] rounded-lg flex items-center justify-center">
               <CheckCircle size={20} className="text-[#2DAEAA]" />
@@ -373,7 +410,7 @@ export default function BankDashboardPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-[#6B7280] mb-1">In Process</p>
-              <h3 className="text-2xl font-bold text-[#1F2937]">{stats.inProcess.toLocaleString()}</h3>
+              <h3 className="text-2xl font-bold text-[#1F2937]">{formatNumber(stats.inProcess)}</h3>
             </div>
             <div className="w-10 h-10 bg-[#FEF3C7] rounded-lg flex items-center justify-center">
               <Clock size={20} className="text-[#F59E0B]" />
@@ -397,7 +434,7 @@ export default function BankDashboardPage() {
           </div>
           <div className="mt-2 flex items-center gap-1 text-xs text-[#F15A22]">
             <TrendingUp size={12} />
-            <span>Avg. Rp 37M per merchant</span>
+            <span>Avg. {formatCurrency(stats.totalPotential / (merchants.length || 1))} per merchant</span>
           </div>
         </div>
       </div>
@@ -442,8 +479,8 @@ export default function BankDashboardPage() {
 
           {/* Center Total */}
           <div className="text-center mt-2">
-            <p className="text-2xl font-bold text-[#1F2937]">{merchants.length}</p>
-            <p className="text-xs text-[#6B7280]">Total Merchants</p>
+            <p className="text-2xl font-bold text-[#1F2937]">{formatNumber(merchants.length)}</p>
+            <p className="text-xs text-[#6B7280]">Merchants on this page</p>
           </div>
         </div>
 
@@ -549,6 +586,9 @@ export default function BankDashboardPage() {
             <p className="text-sm text-[#6B7280]">
               Showing <span className="font-semibold text-[#1F2937]">{currentItems.length}</span> of{' '}
               <span className="font-semibold text-[#1F2937]">{sortedMerchants.length}</span> merchants
+              {totalCount > merchants.length && (
+                <span> (Total: {formatNumber(totalCount)} merchants)</span>
+              )}
             </p>
             
             {/* Items per page selector */}
@@ -556,7 +596,10 @@ export default function BankDashboardPage() {
               <span className="text-sm text-[#6B7280]">Show:</span>
               <select
                 value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
                 className="px-2 py-1 border border-[#E5E7EB] rounded-lg focus:outline-none focus:border-[#F15A22] bg-white text-sm"
               >
                 <option value="10">10</option>
@@ -607,89 +650,89 @@ export default function BankDashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {currentItems.map((merchant, index) => {
-                const statusStyle = getStatusBadge(merchant.status);
-                const StatusIcon = statusStyle.icon;
-                
-                return (
-                  <tr 
-                    key={merchant.id} 
-                    className="border-b border-[#E5E7EB] hover:bg-[#F9FAFB] transition-colors"
-                  >
-                    <td className="py-3 px-4 text-sm text-[#6B7280]">{indexOfFirstItem + index + 1}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-[#F15A22] to-[#2DAEAA] rounded-lg flex items-center justify-center text-white font-semibold text-xs">
-                          {merchant.avatar}
+              {currentItems.length > 0 ? (
+                currentItems.map((merchant, index) => {
+                  const statusStyle = getStatusBadge(merchant.status);
+                  const StatusIcon = statusStyle.icon;
+                  
+                  return (
+                    <tr 
+                      key={merchant.id} 
+                      className="border-b border-[#E5E7EB] hover:bg-[#F9FAFB] transition-colors"
+                    >
+                      <td className="py-3 px-4 text-sm text-[#6B7280]">{indexOfFirstItem + index + 1}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-gradient-to-br from-[#F15A22] to-[#2DAEAA] rounded-lg flex items-center justify-center text-white font-semibold text-xs">
+                            {merchant.avatar}
+                          </div>
+                          <div>
+                            <p className="font-medium text-[#1F2937]">{merchant.name}</p>
+                            <p className="text-xs text-[#6B7280]">{merchant.location}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-[#1F2937]">{merchant.name}</p>
-                          <p className="text-xs text-[#6B7280]">{merchant.location}</p>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="text-sm text-[#4B5563]">{merchant.category}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold ${
+                            Number(merchant.score) >= 85 ? 'text-[#10B981]' : 
+                            Number(merchant.score) >= 70 ? 'text-[#F59E0B]' : 
+                            'text-[#EF4444]'
+                          }`}>
+                            {merchant.score}
+                          </span>
+                          <div className="w-16 h-1.5 bg-[#E5E7EB] rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full ${
+                                Number(merchant.score) >= 85 ? 'bg-[#10B981]' : 
+                                Number(merchant.score) >= 70 ? 'bg-[#F59E0B]' : 
+                                'bg-[#EF4444]'
+                              }`}
+                              style={{ width: `${merchant.score}%` }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="text-sm text-[#4B5563]">{merchant.category}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-bold ${
-                          merchant.score >= 85 ? 'text-[#10B981]' : 
-                          merchant.score >= 70 ? 'text-[#F59E0B]' : 
-                          'text-[#EF4444]'
-                        }`}>
-                          {merchant.score}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getRiskBadge(merchant.risk)}`}>
+                          {merchant.risk}
                         </span>
-                        <div className="w-16 h-1.5 bg-[#E5E7EB] rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full ${
-                              merchant.score >= 85 ? 'bg-[#10B981]' : 
-                              merchant.score >= 70 ? 'bg-[#F59E0B]' : 
-                              'bg-[#EF4444]'
-                            }`}
-                            style={{ width: `${merchant.score}%` }}
-                          />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getRiskBadge(merchant.risk)}`}>
-                        {merchant.risk}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="font-medium text-[#1F2937]">{formatCurrency(merchant.monthlyRevenue)}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusStyle.bg} ${statusStyle.text}`}>
-                        <StatusIcon size={12} />
-                        {merchant.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <button
-                        onClick={() => setSelectedMerchant(merchant)}
-                        className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-[#F15A22] to-[#2DAEAA] text-white rounded-lg text-sm hover:shadow-lg transition-all"
-                      >
-                        <Eye size={14} />
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="font-medium text-[#1F2937]">{formatCurrency(merchant.monthlyRevenue)}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusStyle.bg} ${statusStyle.text}`}>
+                          <StatusIcon size={12} />
+                          {merchant.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <button
+                          onClick={() => handleViewMerchant(merchant)}
+                          disabled={loadingDetail}
+                          className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-[#F15A22] to-[#2DAEAA] text-white rounded-lg text-sm hover:shadow-lg transition-all disabled:opacity-50"
+                        >
+                          <Eye size={14} />
+                          {loadingDetail ? 'Loading...' : 'View'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-[#6B7280]">
+                    No merchants found matching your filters
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-
-        {/* Empty State */}
-        {currentItems.length === 0 && (
-          <div className="text-center py-12">
-            <Users size={48} className="mx-auto text-[#6B7280] mb-4" />
-            <h3 className="font-semibold text-[#1F2937] mb-2">No merchants found</h3>
-            <p className="text-[#6B7280]">Try adjusting your filters</p>
-          </div>
-        )}
 
         {/* Pagination */}
         {sortedMerchants.length > 0 && (
@@ -759,11 +802,12 @@ export default function BankDashboardPage() {
               <div className="flex items-start justify-between mb-6">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 bg-gradient-to-br from-[#F15A22] to-[#2DAEAA] rounded-xl flex items-center justify-center text-white font-bold text-2xl">
-                    {selectedMerchant.avatar}
+                    {selectedMerchant.companyName.substring(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-[#1F2937]">{selectedMerchant.name}</h2>
-                    <p className="text-[#6B7280]">{selectedMerchant.category} • {selectedMerchant.location}</p>
+                    <h2 className="text-2xl font-bold text-[#1F2937]">{selectedMerchant.companyName}</h2>
+                    <p className="text-[#6B7280]">{selectedMerchant.businessCategory} • {selectedMerchant.city}</p>
+                    <p className="text-xs text-[#6B7280] mt-1">{selectedMerchant.email} • {selectedMerchant.phone}</p>
                   </div>
                 </div>
                 <button onClick={() => setSelectedMerchant(null)} className="text-[#6B7280] hover:text-[#1F2937]">✕</button>
@@ -773,34 +817,79 @@ export default function BankDashboardPage() {
                 <div className="p-4 bg-[#F9FAFB] rounded-lg">
                   <p className="text-sm text-[#6B7280] mb-1">Credit Score</p>
                   <p className="text-2xl font-bold" style={{
-                    color: selectedMerchant.score >= 85 ? '#10B981' : selectedMerchant.score >= 70 ? '#F59E0B' : '#EF4444'
-                  }}>{selectedMerchant.score}</p>
+                    color: selectedMerchant.creditScore >= 85 ? '#10B981' : selectedMerchant.creditScore >= 70 ? '#F59E0B' : '#EF4444'
+                  }}>{selectedMerchant.creditScore}</p>
                 </div>
                 <div className="p-4 bg-[#F9FAFB] rounded-lg">
                   <p className="text-sm text-[#6B7280] mb-1">Risk Level</p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getRiskBadge(selectedMerchant.risk)}`}>
-                    {selectedMerchant.risk}
+                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getRiskBadge(selectedMerchant.riskBand)}`}>
+                    {selectedMerchant.riskBand}
                   </span>
                 </div>
                 <div className="p-4 bg-[#F9FAFB] rounded-lg">
                   <p className="text-sm text-[#6B7280] mb-1">Monthly Revenue</p>
-                  <p className="text-xl font-bold text-[#1F2937]">{formatCurrency(selectedMerchant.monthlyRevenue)}</p>
+                  <p className="text-xl font-bold text-[#1F2937]">
+                    {formatCurrency(parseFloat(selectedMerchant.financialMetrics.avgMonthlyRevenue) / 1000000)}
+                  </p>
                 </div>
                 <div className="p-4 bg-[#F9FAFB] rounded-lg">
-                  <p className="text-sm text-[#6B7280] mb-1">Status</p>
-                  <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
-                    getStatusBadge(selectedMerchant.status).bg
-                  } ${getStatusBadge(selectedMerchant.status).text}`}>
-                    {selectedMerchant.status}
-                  </span>
+                  <p className="text-sm text-[#6B7280] mb-1">Loan Eligibility</p>
+                  {selectedMerchant.loanEligibility.isEligible ? (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#10B981]/10 text-[#10B981] rounded-full text-sm">
+                      <CheckCircle size={12} />
+                      Eligible
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#EF4444]/10 text-[#EF4444] rounded-full text-sm">
+                      <AlertCircle size={12} />
+                      Not Eligible
+                    </span>
+                  )}
                 </div>
                 <div className="p-4 bg-[#F9FAFB] rounded-lg">
                   <p className="text-sm text-[#6B7280] mb-1">Join Date</p>
-                  <p className="font-medium">{selectedMerchant.joinDate}</p>
+                  <p className="font-medium">{new Date(selectedMerchant.joinDate).toLocaleDateString()}</p>
                 </div>
                 <div className="p-4 bg-[#F9FAFB] rounded-lg">
-                  <p className="text-sm text-[#6B7280] mb-1">Last Active</p>
-                  <p className="font-medium">{selectedMerchant.lastActive}</p>
+                  <p className="text-sm text-[#6B7280] mb-1">Business Scale</p>
+                  <p className="font-medium">{selectedMerchant.businessScale}</p>
+                </div>
+              </div>
+
+              {/* Financial Metrics */}
+              <div className="mb-6">
+                <h3 className="font-semibold text-[#1F2937] mb-3">Financial Metrics</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex justify-between p-2 bg-[#F9FAFB] rounded">
+                    <span className="text-sm text-[#6B7280]">30-Day Revenue</span>
+                    <span className="font-medium">{formatCurrency(selectedMerchant.financialMetrics.revenue30d / 1000000)}</span>
+                  </div>
+                  <div className="flex justify-between p-2 bg-[#F9FAFB] rounded">
+                    <span className="text-sm text-[#6B7280]">30-Day Transactions</span>
+                    <span className="font-medium">{formatNumber(selectedMerchant.financialMetrics.transactions30d)}</span>
+                  </div>
+                  <div className="flex justify-between p-2 bg-[#F9FAFB] rounded">
+                    <span className="text-sm text-[#6B7280]">Revenue Growth</span>
+                    <span className={`font-medium ${parseFloat(selectedMerchant.financialMetrics.revenueGrowth) >= 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
+                      {selectedMerchant.financialMetrics.revenueGrowth}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between p-2 bg-[#F9FAFB] rounded">
+                    <span className="text-sm text-[#6B7280]">Refund Rate</span>
+                    <span className={`font-medium ${parseFloat(selectedMerchant.financialMetrics.refundRate) <= 3 ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
+                      {selectedMerchant.financialMetrics.refundRate}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between p-2 bg-[#F9FAFB] rounded">
+                    <span className="text-sm text-[#6B7280]">Avg Settlement</span>
+                    <span className="font-medium">{selectedMerchant.financialMetrics.avgSettlementDays} days</span>
+                  </div>
+                  <div className="flex justify-between p-2 bg-[#F9FAFB] rounded">
+                    <span className="text-sm text-[#6B7280]">Est. Loan Limit</span>
+                    <span className="font-medium text-[#F15A22]">
+                      {formatCurrency(parseFloat(selectedMerchant.loanEligibility.estimatedMinLimit) / 1000000)} - {formatCurrency(parseFloat(selectedMerchant.loanEligibility.estimatedMaxLimit) / 1000000)}
+                    </span>
+                  </div>
                 </div>
               </div>
 

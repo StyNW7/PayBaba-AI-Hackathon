@@ -376,4 +376,83 @@ export interface LoanTimingData {
 }
 
 
+
+// BANK DASHBOARD
+
+
+// Add these interfaces to your existing types
+
+export interface BankMerchant {
+  [x: string]: string;
+  merchantId: string;
+  companyName: string;
+  city: string;
+  businessCategory: string;
+  businessScale: string;
+  creditScore: number;
+  riskBand: 'Low' | 'Medium' | 'High';
+  monthlyRevenue: number;
+}
+
+export interface BankMerchantsResponse {
+  count: number;
+  merchants: BankMerchant[];
+}
+
+export interface ScoreHistoryItem {
+  date: string;
+  score: number;
+  riskBand: string;
+}
+
+export interface FinancialMetrics {
+  revenue30d: number;
+  transactions30d: number;
+  avgMonthlyRevenue: string;
+  revenueGrowth: string;
+  refundRate: string;
+  avgSettlementDays: string;
+}
+
+export interface LoanEligibility {
+  estimatedMinLimit: string;
+  estimatedMaxLimit: string;
+  isEligible: boolean;
+  canBorrow: boolean;
+}
+
+export interface MerchantDetail {
+  merchantId: string;
+  companyName: string;
+  email: string;
+  city: string;
+  address: string;
+  phone: string;
+  businessCategory: string;
+  businessScale: string;
+  joinDate: string;
+  creditScore: number;
+  riskBand: string;
+  scoreHistory: ScoreHistoryItem[];
+  financialMetrics: FinancialMetrics;
+  loanEligibility: LoanEligibility;
+  riskFlags: any[];
+}
+
+export const bankApi = {
+  getAllMerchants: async (limit: number = 50, offset: number = 0): Promise<ApiResponse<BankMerchantsResponse>> => {
+    const response = await api.get<ApiResponse<BankMerchantsResponse>>('/bank/merchants/all', {
+      params: { limit, offset }
+    });
+    return response.data;
+  },
+  
+  getMerchantDetail: async (merchantId: string): Promise<ApiResponse<MerchantDetail>> => {
+    const response = await api.get<ApiResponse<MerchantDetail>>(`/bank/merchants/${merchantId}`);
+    return response.data;
+  },
+};
+
+
+
 export default api;
