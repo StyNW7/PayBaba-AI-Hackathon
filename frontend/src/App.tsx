@@ -31,7 +31,7 @@ import TeamPage from "./pages/Merchant-Dashboard/team-page";
 import NotificationsPage from "./pages/Merchant-Dashboard/notifications";
 import TransactionsPage from "./pages/Merchant-Dashboard/transaction";
 import SmartLoanPage from "./pages/Merchant-Dashboard/time-loan";
-import LimitSimulatorPage from "./pages/Bank-Dashboard/simulator";
+// import LimitSimulatorPage from "./pages/Bank-Dashboard/simulator";
 import SettingsPage from "./pages/Merchant-Dashboard/settings";
 import HelpPage from "./pages/Merchant-Dashboard/help";
 import BankDashboardPage from "./pages/Bank-Dashboard/overview";
