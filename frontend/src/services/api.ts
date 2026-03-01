@@ -221,6 +221,12 @@ export const merchantApi = {
     const response = await api.get<ApiResponse<ProductInsights>>('/merchant/product-insights');
     return response.data;
   },
+
+  getCreditDetail: async (): Promise<ApiResponse<CreditDetail>> => {
+    const response = await api.get<ApiResponse<CreditDetail>>('/merchant/credit-detail');
+    return response.data;
+  },
+
 };
 
 
@@ -309,6 +315,50 @@ export const transactionApi = {
     return response.data;
   },
 };
+
+
+
+// CREDIT READINESS
+
+
+// Add this interface to your existing types
+export interface CreditDetail {
+  score: number;
+  riskBand: string;
+  estimatedMinLimit: string;
+  estimatedMaxLimit: string;
+  components: {
+    transactionVolume: {
+      score: number;
+      weight: number;
+    };
+    revenueConsistency: {
+      score: number;
+      weight: number;
+    };
+    growthTrend: {
+      score: number;
+      weight: number;
+    };
+    refundRate: {
+      score: number;
+      weight: number;
+    };
+    settlementTime: {
+      score: number;
+      weight: number;
+    };
+  };
+  metrics: {
+    avgMonthlyRevenue: string;
+    revenueVolatility: string;
+    growthPercentageMoM: string;
+    refundRatePercentage: string;
+    avgSettlementDays: string;
+    transactionCount3m: number;
+  };
+  calculatedAt: string;
+}
 
 
 
