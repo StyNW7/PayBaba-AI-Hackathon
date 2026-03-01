@@ -134,17 +134,42 @@ function App() {
 
             {/* Bank Dashboard */}
 
-            <Route path="/bank/dashboard" element={<BankDashboardLayout children={<BankDashboardPage/>}/>} />
-            <Route path="/bank/dashboard/simulation" element={<BankDashboardLayout children={<LimitSimulatorPage/>}/>} />
+            <Route path="/bank/dashboard" element={
+              <ProtectedRoute>
+                <BankDashboardLayout children={<BankDashboardPage/>}/>
+              </ProtectedRoute>
+            } />
+            <Route path="/bank/dashboard/simulation" element={
+              <ProtectedRoute>
+                <BankDashboardLayout children={<LimitSimulatorPage/>}/>
+              </ProtectedRoute>
+            } />
 
-            <Route path="/bank/dashboard/merchant/:id" element={<BankDashboardLayout children={<MerchantDetailPage/>}/>} />
+            <Route path="/bank/dashboard/merchant/:id" element={
+              <ProtectedRoute>
+                <BankDashboardLayout children={<MerchantDetailPage/>}/>
+              </ProtectedRoute>
+            }/>
 
-            <Route path="/bank/dashboard/warning-system" element={<BankDashboardLayout children={<EarlyWarningPage/>}/>} />
+            <Route path="/bank/dashboard/warning-system" element={
+              <ProtectedRoute>
+                <BankDashboardLayout children={<EarlyWarningPage/>}/>
+              </ProtectedRoute>
+            } />
 
             {/* PayBaba Admin Dashboard */}
 
-            <Route path="/paybaba/dashboard" element={<PayBabaDashboardLayout children={<MonetizationDashboardPage/>}/>} />
-            <Route path="/paybaba/dashboard/ai" element={<PayBabaDashboardLayout children={<AIOpsDashboardPage/>}/>} />
+            <Route path="/paybaba/dashboard" element={
+              <ProtectedRoute>
+                <PayBabaDashboardLayout children={<MonetizationDashboardPage/>}/>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/paybaba/dashboard/ai" element={
+              <ProtectedRoute>
+                <PayBabaDashboardLayout children={<AIOpsDashboardPage/>}/>
+              </ProtectedRoute>
+            } />
 
           </Routes>
 
