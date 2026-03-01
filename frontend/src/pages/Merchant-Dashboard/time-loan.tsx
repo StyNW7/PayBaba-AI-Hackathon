@@ -9,9 +9,7 @@ import {
   TrendingDown,
   Clock,
   Shield,
-  Zap,
   BarChart3,
-  ArrowRight,
   ChevronDown,
   ChevronUp,
   Sparkles,
@@ -19,7 +17,6 @@ import {
   Target,
   CalendarClock,
   Lightbulb,
-  AlertCircle,
   ChevronRight
 } from 'lucide-react';
 import {
@@ -104,7 +101,7 @@ export default function SmartLoanPage() {
   const [error, setError] = useState<string | null>(null);
   const [loanData, setLoanData] = useState<LoanTimingData | null>(null);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  const [selectedAmount, setSelectedAmount] = useState(70);
+  // const [selectedAmount, setSelectedAmount] = useState(70);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch loan timing data from API
@@ -512,7 +509,7 @@ export default function SmartLoanPage() {
       </div>
 
       {/* Section 5: Action Button */}
-      <div className="bg-gradient-to-r from-[#F3F4F6] to-[#F9FAFB] rounded-2xl p-6 border border-[#E5E7EB]">
+      {/* <div className="bg-gradient-to-r from-[#F3F4F6] to-[#F9FAFB] rounded-2xl p-6 border border-[#E5E7EB]">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-[#F15A22] to-[#2DAEAA] rounded-xl flex items-center justify-center animate-pulse-glow">
@@ -525,7 +522,6 @@ export default function SmartLoanPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Amount selector */}
             <select 
               value={selectedAmount}
               onChange={(e) => setSelectedAmount(Number(e.target.value))}
@@ -545,14 +541,13 @@ export default function SmartLoanPage() {
           </div>
         </div>
 
-        {/* Disclaimer */}
         <div className="mt-4 pt-4 border-t border-[#E5E7EB]">
           <p className="text-xs text-[#6B7280] flex items-center gap-1">
             <AlertCircle size={12} />
             Based on historical data analysis. Actual loan approval and terms may vary based on current financial assessment.
           </p>
         </div>
-      </div>
+      </div> */}
 
       <style>{`
         @keyframes float {
