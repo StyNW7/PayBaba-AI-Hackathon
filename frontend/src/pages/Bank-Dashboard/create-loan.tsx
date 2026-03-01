@@ -151,7 +151,7 @@ export default function CreateLoanApplicationPage() {
         
         // Auto redirect after 3 seconds
         setTimeout(() => {
-          navigate('/bank/loan-applications');
+          navigate('/bank/loans');
         }, 3000);
       } else {
         setError(response.message || 'Failed to create loan application');

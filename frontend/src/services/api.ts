@@ -488,7 +488,7 @@ export const bankApi = {
   },
   
   createLoanApplication: async (data: CreateLoanApplicationRequest): Promise<ApiResponse<CreateLoanApplicationResponse>> => {
-    const response = await api.post<ApiResponse<CreateLoanApplicationResponse>>(`/bank/loan-applications/${data.merchantId}`, data);
+    const response = await api.post<ApiResponse<CreateLoanApplicationResponse>>(`/bank/loan-applications`, data);
     return response.data;
   },
 
