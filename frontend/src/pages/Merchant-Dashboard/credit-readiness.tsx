@@ -379,9 +379,9 @@ export default function CreditReadinessPage() {
               <div className="w-12 h-12 bg-gradient-to-br from-[#E0F7F6] to-[#C7EEE8] rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Target size={24} className="text-[#2DAEAA]" />
               </div>
-              <span className="text-xs font-medium text-[#F15A22] bg-[#F15A22]/10 px-2 py-1 rounded-full">
+              {/* <span className="text-xs font-medium text-[#F15A22] bg-[#F15A22]/10 px-2 py-1 rounded-full">
                 {formatCurrency(creditData.estimatedMaxLimit)}
-              </span>
+              </span> */}
             </div>
             <p className="text-[#6B7280] text-sm mb-1">Monthly Revenue</p>
             <p className="text-2xl font-bold text-[#1F2937]">{formatCurrency(creditData.metrics.avgMonthlyRevenue)}</p>

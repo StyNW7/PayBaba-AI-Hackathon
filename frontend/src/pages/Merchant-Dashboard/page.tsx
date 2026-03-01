@@ -245,7 +245,7 @@ export default function DashboardPage() {
             icon={<CreditCard size={28} />}
             label="Credit Score"
             value={dashboardData.currentCreditScore.toString()}
-            change={`↑ ${dashboardData.currentCreditScore - 650} points`}
+            change={`↑ ${dashboardData.currentCreditScore-25} points`}
             trend="up"
             color="orange"
             subtext={dashboardData.riskBand}

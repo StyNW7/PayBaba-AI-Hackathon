@@ -28,7 +28,14 @@ export default function LoginForm() {
       setSubmitSuccess(true);
       // Redirect to dashboard after successful login
       setTimeout(() => {
-        navigate('/merchant/dashboard');
+
+        if (formData.email.includes("bank")){
+          navigate('/bank/dashboard');
+        }
+        else {
+          navigate('/merchant/dashboard');
+        }
+        
       }, 1500);
     }
   }, [isAuthenticated, navigate]);
