@@ -9,8 +9,7 @@
 </div>
 <br>
 <h1 align="center">1st of Mini Hackathon Paylabs x Alibaba x BINUS University
-<br>
-Culminating Event</h1>
+</h1>
 <div align="center">
 
 <img src="./images/screenshots/home.png" alt="PayBaba Home"/>
